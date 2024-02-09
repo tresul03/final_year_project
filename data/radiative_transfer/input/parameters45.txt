@@ -1,9 +1,9 @@
 # viewing angles
-theta = 7.23, 77.38, 31.45, 73.94, 53.28, 55.90, 23.41, 3.22, 35.90, 79.12
+theta = 6.72, 17.62, 2.16, 10.68, 54.29, 61.02, 45.73, 66.31, 23.48, 58.83
 
 # galaxy mass and structure parameters
-logMstar = 9.67 # mass of stellar disk
-logMdust = 7.48 # mass of dust disk
+logMstar = 9.69 # mass of stellar disk
+logMdust = 6.80 # mass of dust disk
 Rstar = 3.00 # half-mass radius of stellar disk
 Cstar = 0.60 # half-mass height of stellar disk
 nstar = 2.00 # Sersic index of stellar disk
