@@ -1,0 +1,7 @@
+mstar 11.17026754 10.51308586 11.00286645
+mdust 8.376933498731455, 7.845244065767111, 7.753148035290102
+
+
+cd Onedrive/Desktop/'Physics Year 3'/'Final year project'/Github/project_script/data/radiative_transfer
+
+cd /home/AstroPhysics-Shared/PROJECTS/MPhys_Wuyts/FYP_ML3DRT 

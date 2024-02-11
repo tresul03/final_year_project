@@ -1,0 +1,29 @@
+def dir_reduc(arr):
+    # assigning coordinate system
+    disp = [0, 0]
+
+    directions = {
+        "NORTH": [1, 0],
+        "SOUTH": [-1, 0],
+        "EAST": [0, 1],
+        "WEST": [0, -1]
+    }
+
+    reduced_directions = []
+
+    for move in arr:
+        disp = [disp[0] + directions[move][0], disp[1] + directions[move][1]]
+
+        # Check if the current move cancels out the previous move
+        if reduced_directions and directions[move] == [-directions[reduced_directions[-1]][0], -directions[reduced_directions[-1]][1]]:
+            reduced_directions.pop()  # Cancel out the previous move
+        else:
+            reduced_directions.append(move)
+
+    return reduced_directions
+
+
+arr = ["NORTH", "SOUTH", "SOUTH", "EAST", "WEST", "NORTH", "WEST", "NORTH"]
+result = dir_reduc(arr)
+
+print("Reduced direction(s):", result)
