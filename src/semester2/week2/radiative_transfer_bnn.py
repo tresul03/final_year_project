@@ -106,3 +106,59 @@ class RadiativeTransferBNN(nn.Module):
 
         table = dict(zip(keys, values))
         return table
+
+    def read_output_file(
+            self,
+            filename: str,
+            data,
+            thetas,
+            log_mstar,
+            log_mdust_over_mstar,
+            filepath: str = '../../../data/radiative_transfer/output/'
+            ):
+        """
+        Read the output file.
+
+        Parameters:
+        - filename (str): Name of the output file.
+        - data (pd.DataFrame): DataFrame containing the data.
+        - thetas (list): List of viewing angles.
+        - log_mstar (float): log of stellar mass.
+        - log_mdust_over_mstar (float): log of dust mass over stellar mass.
+        - filepath (str): Path to the output file.
+        Default is '../../data/radiative_transfer/output/'.
+
+        Returns:
+        - wvl (np.array): Rest-frame wavelength [micron].
+        - data (pd.DataFrame): DataFrame containing the data.
+        """
+
+        filepath += filename
+
+        # Finding hdf keys
+        hdf_keys = np.array([])
+        with pd.HDFStore(filepath, 'r') as hdf:
+            hdf_keys = np.append(hdf_keys, hdf.keys())
+
+        for i in range(len(hdf_keys)):
+            table = pd.read_hdf(filepath, hdf_keys[i])
+
+            # obtain wavelength, flux, half-light radius, and Sersic index
+            wvl = table['wvl'].to_numpy(dtype=np.float64)  # [micron]
+            flux = table['flux'].to_numpy(dtype=np.float64)  # [Wm^-2]
+            r = table['r'].to_numpy(dtype=np.float64)  # [kpc]
+            n = table['n'].to_numpy(dtype=np.float64)
+
+            data = pd.concat([
+                data,
+                pd.DataFrame({
+                    "log_mstar": log_mstar,
+                    "log_mdust_over_mstar": log_mdust_over_mstar,
+                    "theta": thetas[i],
+                    "n": [n],
+                    "flux": [flux],
+                    "r": [r]
+                    })
+                ], ignore_index=True)
+
+        return wvl, data.reset_index(drop=True)
