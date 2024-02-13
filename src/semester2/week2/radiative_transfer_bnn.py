@@ -107,6 +107,40 @@ class RadiativeTransferBNN(nn.Module):
         table = dict(zip(keys, values))
         return table
 
+    def read_input_dict(
+            self,
+            filenames: list,
+            filepath: str = "../../../data/radiative_transfer/input/"
+            ):
+        """
+        Read the parameter files.
+
+        Parameters:
+        - filenames (list): List of filenames.
+        - filepath (str): Path to the parameter files.
+        Default is '../../data/radiative_transfer/input/'.
+
+        Returns:
+        - list_log_mstar (np.array): Array of log of stellar mass.
+        - list_log_mdust_over_mstar (np.array): Array of log of dust mass over
+        stellar mass.
+        - list_theta (np.array): Array of viewing angles.
+        """
+
+        list_log_mstar = np.array([])
+        list_log_mdust = np.array([])
+        list_theta = np.array([])
+
+        for filename in filenames:
+            table = self.read_input_file(filename, filepath)
+            list_log_mstar = np.append(list_log_mstar, table['logMstar'])
+            list_log_mdust = np.append(list_log_mdust, table['logMdust'])
+            list_theta = np.append(list_theta, table['theta'])
+
+        list_log_mdust_over_mstar = list_log_mdust - list_log_mstar
+
+        return list_log_mstar, list_log_mdust_over_mstar, list_theta
+
     def read_output_file(
             self,
             filename: str,
