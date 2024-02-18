@@ -316,7 +316,7 @@ class RadiativeTransferBNN(nn.Module):
         list_theta = (list_theta * np.pi) / 180  # convert to radians
 
         for i in range(len(output_files)):
-            wavelength, data = self.read_output_file(
+            wavelength, self.df = self.read_output_file(
                 output_files[i],
                 self.df,
                 np.sin(list_theta),
@@ -324,7 +324,7 @@ class RadiativeTransferBNN(nn.Module):
                 list_log_mdust_over_mstar[i]
             )
 
-        return wavelength, data
+        return wavelength
 
     def preprocess_data(self):
         """
@@ -351,6 +351,8 @@ class RadiativeTransferBNN(nn.Module):
             - self.y_train: Training subset of the output features.
             - self.y_test: Testing subset of the output features.
         """
+
+        self.compile_dataset()
         scaler = StandardScaler()
         X = self.df[["log_mstar", "log_mdust_over_mstar", "theta"]].copy()
         X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
@@ -509,7 +511,6 @@ class RadiativeTransferBNN(nn.Module):
 
 
 model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
-model.compile_dataset()
 model.preprocess_data()
 model.train_model(10, 20)
 mean_pred_results, std_pred_results = model.test_model()
