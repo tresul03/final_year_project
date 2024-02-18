@@ -261,6 +261,10 @@ class RadiativeTransferBNN(nn.Module):
             r = table['r'].to_numpy(dtype=np.float64)  # [kpc]
             n = table['n'].to_numpy(dtype=np.float64)
 
+            flux = np.log10(flux)
+            r = np.log10(r)
+            n = np.log10(n)
+
             self.df = pd.concat([
                 self.df,
                 pd.DataFrame({
