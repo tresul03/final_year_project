@@ -101,7 +101,7 @@ class RadiativeTransferBNN(nn.Module):
                 keys.append(line4[0])
                 line5 = line4[1].split(', ')
                 line5 = np.array(line5).astype(float)
-                if len(line5) == 1 and line4[0]!='theta':
+                if len(line5) == 1 and line4[0] != 'theta':
                     line5 = line5[0]
                 values.append(line5)
 
@@ -231,12 +231,19 @@ class RadiativeTransferBNN(nn.Module):
 
         return wavelength, data
 
-    def train_model(self, input_train, output_train, epochs: int, batch_size: int):
+    def train_model(
+            self,
+            input_train,
+            output_train,
+            epochs: int,
+            batch_size: int
+            ):
         """
         Train the model using batch training.
 
         Parameters:
-        - model_attributes (tuple): Tuple containing the initialized model, MSE loss function, KL loss function, KL weight, and optimizer.
+        - model_attributes (tuple): Tuple containing the initialized model,
+        MSE loss function, KL loss function, KL weight, and optimizer.
         - input_train (tensor): Input tensor for training.
         - output_train (tensor): Output tensor for training.
         - epochs (int): Number of epochs to train the model.
@@ -277,4 +284,39 @@ class RadiativeTransferBNN(nn.Module):
 
         print(f"- cost: {cost.item():.3f}")
 
-        return self
+    def test_model(
+            self,
+            input_test,
+            output_test
+            ):
+        """
+        Test the model.
+
+        Parameters:
+        - model (nn.Module): Trained model.
+        - input_test (tensor): Input tensor for testing.
+        - output_test (tensor): Output tensor for testing.
+
+        Returns:
+        - mean_pred_results (np.array): Mean predicted results.
+        - std_pred_results (np.array): Standard deviation of predicted results.
+        """
+
+        self.eval()
+
+        pred = np.array([
+            self(input_test).detach().numpy() for _ in range(500)
+            ])
+        mean_pred_results = np.mean(pred, axis=0)
+        std_pred_results = np.std(pred, axis=0)
+
+        # find the cost of the model
+        mse = self.mse_loss(
+            torch.Tensor(mean_pred_results),
+            torch.Tensor(output_test)
+            )
+        kl = self.kl_loss(self)
+        cost = mse + self.kl_weight * kl
+
+        print(f"- cost: {cost.item():.3f}")
+        return mean_pred_results, std_pred_results
