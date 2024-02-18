@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torchbnn as bnn
 from sklearn.model_selection import train_test_split
+from torch.utils.data import TensorDataset, DataLoader
 import os
 
 
@@ -229,3 +230,51 @@ class RadiativeTransferBNN(nn.Module):
             )
 
         return wavelength, data
+
+    def train_model(self, input_train, output_train, epochs: int, batch_size: int):
+        """
+        Train the model using batch training.
+
+        Parameters:
+        - model_attributes (tuple): Tuple containing the initialized model, MSE loss function, KL loss function, KL weight, and optimizer.
+        - input_train (tensor): Input tensor for training.
+        - output_train (tensor): Output tensor for training.
+        - epochs (int): Number of epochs to train the model.
+        - batch_size (int): Batch size for training.
+
+        Returns:
+        - The trained model.
+        """
+
+        self.train()
+
+        # Create a TensorDataset from input and output tensors
+        tensor_dataset = TensorDataset(
+            input_train,
+            output_train
+            )
+
+        # Create a DataLoader for batch training
+        data_loader = DataLoader(
+            tensor_dataset,
+            batch_size=batch_size,
+            shuffle=True
+            )
+
+        for _ in range(epochs):
+            for batch_data, batch_labels in data_loader:
+                self.optimizer.zero_grad()
+                pred = self(batch_data)
+
+                # Calculate cost (MSE + KL)
+                mse = self.mse_loss(pred, batch_labels)
+                kl = self.kl_loss(self)
+                cost = mse + self.kl_weight * kl
+
+                # Backpropagation and optimization
+                cost.backward()
+                self.optimizer.step()
+
+        print(f"- cost: {cost.item():.3f}")
+
+        return self
