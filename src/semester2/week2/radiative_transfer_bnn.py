@@ -196,3 +196,36 @@ class RadiativeTransferBNN(nn.Module):
                 ], ignore_index=True)
 
         return wvl, data.reset_index(drop=True)
+
+    def compile_dataset(
+            self,
+            data,
+            input_files,
+            output_files
+            ):
+        """
+        Generate the dataset.
+
+        Parameters:
+        - data (pd.DataFrame): DataFrame containing the data.
+        - params (list): List of parameter files.
+        - files (list): List of output files.
+
+        Returns:
+        - wavelength (np.array): Rest-frame wavelength [micron].
+        - data (pd.DataFrame): DataFrame containing the data.
+        """
+
+        list_log_mstar, list_log_mdust_over_mstar, list_theta = \
+            self.read_input_dict(input_files)
+
+        for i in range(len(output_files)):
+            wavelength, data = self.read_output_file(
+                output_files[i],
+                data,
+                np.sin(list_theta),
+                list_log_mstar[i],
+                list_log_mdust_over_mstar[i]
+            )
+
+        return wavelength, data
