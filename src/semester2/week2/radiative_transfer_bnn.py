@@ -1,3 +1,4 @@
+from pdb import run
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -12,9 +13,6 @@ import os
 class RadiativeTransferBNN(nn.Module):
     def __init__(self, number_of_neurones, dropout_probablity, learning_rate):
         super(RadiativeTransferBNN, self).__init__()
-
-        cuda_available = torch.cuda.is_available()
-        device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.shared_layer = nn.Sequential(
             bnn.BayesLinear(  # input layer
@@ -50,17 +48,36 @@ class RadiativeTransferBNN(nn.Module):
                 prior_mu=0,
                 prior_sigma=0.1,
                 in_features=number_of_neurones,
-                out_features=1
+                out_features=113
             )
         )
 
-        # loss function
+        cuda_available = torch.cuda.is_available()
+        device = torch.device("cuda:0" if cuda_available else "cpu")
+
+        self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
+
         self.mse_loss = nn.MSELoss()
         self.kl_loss = bnn.BKLLoss(reduction='mean')
         self.kl_weight = 0.01
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
         self.to(device)  # move the model to the GPU if available
+        self.df = pd.DataFrame(
+            columns=[
+                "log_mstar",
+                "log_mdust_over_mstar",
+                "theta",
+                "n",
+                "flux",
+                "r"
+                ]
+            )
+
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
 
     def forward(self, x):
         shared = self.shared_layer(x)
@@ -184,8 +201,8 @@ class RadiativeTransferBNN(nn.Module):
             r = table['r'].to_numpy(dtype=np.float64)  # [kpc]
             n = table['n'].to_numpy(dtype=np.float64)
 
-            data = pd.concat([
-                data,
+            self.df = pd.concat([
+                self.df,
                 pd.DataFrame({
                     "log_mstar": log_mstar,
                     "log_mdust_over_mstar": log_mdust_over_mstar,
@@ -196,7 +213,7 @@ class RadiativeTransferBNN(nn.Module):
                     })
                 ], ignore_index=True)
 
-        return wvl, data.reset_index(drop=True)
+        return wvl, self.df.reset_index(drop=True)
 
     def compile_dataset(
             self
@@ -231,27 +248,42 @@ class RadiativeTransferBNN(nn.Module):
             self.read_input_dict(X)
         list_theta = (list_theta * np.pi) / 180  # convert to radians
 
-        data = pd.DataFrame(
-            columns=[
-                "log_mstar",
-                "log_mdust_over_mstar",
-                "theta",
-                "n",
-                "flux",
-                "r"
-                ]
-            )
-
         for i in range(len(Y)):
             wavelength, data = self.read_output_file(
                 Y[i],
-                data,
+                self.df,
                 np.sin(list_theta),
                 list_log_mstar[i],
                 list_log_mdust_over_mstar[i]
             )
 
         return wavelength, data
+
+    def preprocess_data(self):
+        X = self.df[["log_mstar", "log_mdust_over_mstar", "theta"]].copy()
+        X["run_id"] = X.groupby([
+            "log_mstar",
+            "log_mdust_over_mstar"
+            ]).ngroup()
+
+        y = self.df[["n", "flux", "r"]].copy()
+        y["run_id"] = X["run_id"]
+
+        run_ids = X["run_id"].unique()
+        train_runs, test_runs = train_test_split(
+            run_ids,
+            test_size=0.2,
+            random_state=42
+            )
+
+        self.X_train = X[X["run_id"].isin(train_runs)]\
+            .drop(columns="run_id").reset_index(drop=True)
+        self.X_test = X[X["run_id"].isin(test_runs)]\
+            .drop(columns="run_id").reset_index(drop=True)
+        self.y_train = y[y["run_id"].isin(train_runs)]\
+            .drop(columns="run_id").reset_index(drop=True)
+        self.y_test = y[y["run_id"].isin(test_runs)]\
+            .drop(columns="run_id").reset_index(drop=True)
 
     def train_model(
             self,
@@ -348,3 +380,9 @@ class RadiativeTransferBNN(nn.Module):
 # h5_files = [file for file in os.listdir("../../data/radiative_transfer/output/") if file.startswith("data")]
 
 # wavelength, h5_data = generate_dataset(pd.DataFrame(columns=["log_mstar", "log_mdust_over_mstar", "theta", "n", "flux", "r"]), parameter_files, h5_files)
+
+# model = RadiativeTransferBNN(1000, 0.3, 0.01)
+# model.compile_dataset()
+# model.preprocess_data()
+# model.X_test.to_csv("X_test.csv")
+# model.y_test.to_csv("y_test.csv")
