@@ -1,6 +1,4 @@
-from pdb import run
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -13,6 +11,15 @@ import time
 
 
 class RadiativeTransferBNN(nn.Module):
+    """
+    Bayesian Neural Network for Radiative Transfer.
+
+    Parameters:
+    - number_of_neurones (int): Number of neurones in the hidden layers.
+    - dropout_probablity (float): Dropout probability.
+    - learning_rate (float): Learning rate.
+    - output_choice (str): Choice of output.
+    """
     def __init__(
             self,
             number_of_neurones: int,
@@ -84,12 +91,21 @@ class RadiativeTransferBNN(nn.Module):
                 ]
             )
 
-        self.X_train = None
-        self.X_test = None
-        self.y_train = None
-        self.y_test = None
+        self.X_train = torch.Tensor()
+        self.X_test = torch.Tensor()
+        self.y_train = torch.Tensor()
+        self.y_test = torch.Tensor()
 
     def forward(self, x):
+        """
+        Forward pass through the network.
+
+        Parameters:
+        - x (tensor): Input tensor.
+
+        Returns:
+        - output_layer (tensor): Output tensor.
+        """
         shared = self.shared_layer(x)
         return self.output_layer(shared)
 
@@ -99,15 +115,26 @@ class RadiativeTransferBNN(nn.Module):
             filepath: str = '../../data/radiative_transfer/input/'
             ):
         """
-        Read the parameters from the input file.
+        Reads the input file and extracts parameters.
+
+        This method reads a file from the provided path and filename, and
+        parses it to extract parameters.
+        Each line in the file should contain a key-value pair, separated by an
+        equals sign (=).
+        The key is the parameter name, and the value is the parameter value.
+        If the value contains multiple items separated by commas, it is
+        converted into a numpy array.
+        If the value is a single item, it is converted to a float.
 
         Parameters:
-        - filename (str): Name of the input file.
-        - filepath (str): Path to the input file.
-        Default is '../../data/radiative_transfer/input/'.
+        - filename (str): The name of the input file.
+        - filepath (str, optional): The path to the directory containing the
+        input file.
+        Defaults to '../../data/radiative_transfer/input/'.
 
         Returns:
-        - table (dict): Dictionary containing the parameters.
+        - dict: A dictionary where the keys are parameter names and the values
+        are parameter values.
         """
 
         lines = open(filepath+filename, 'r').readlines()
@@ -141,12 +168,24 @@ class RadiativeTransferBNN(nn.Module):
             filepath: str = "../../../data/radiative_transfer/input/"
             ):
         """
-        Read the parameter files.
+        Reads multiple parameter files and extracts parameters.
+
+        This method reads a list of files from the provided path, and parses
+        each file to extract parameters.
+        Each file should contain key-value pairs, separated by an equals sign
+        (=).
+        The key is the parameter name, and the value is the parameter value.
+        If the value contains multiple items separated by commas, it is
+        converted into a numpy array.
+        If the value is a single item, it is converted to a float.
+        The parameters extracted from each file are appended to corresponding
+        numpy arrays.
 
         Parameters:
-        - filenames (list): List of filenames.
-        - filepath (str): Path to the parameter files.
-        Default is '../../data/radiative_transfer/input/'.
+        - filenames (list): The list of names of the input files.
+        - filepath (str, optional): The path to the directory containing the
+        input files.
+        Defaults to '../../../data/radiative_transfer/input/'.
 
         Returns:
         - list_log_mstar (np.array): Array of log of stellar mass.
@@ -179,16 +218,27 @@ class RadiativeTransferBNN(nn.Module):
             filepath: str = '../../../data/radiative_transfer/output/'
             ):
         """
-        Read the output file.
+        Reads the output file and extracts parameters.
+
+        This method reads an output file from the provided path and filename,
+        and parses it to extract parameters.
+        Each file should contain key-value pairs, separated by an equals sign
+        (=).
+        The key is the parameter name, and the value is the parameter value.
+        If the value contains multiple items separated by commas, it is
+        converted into a numpy array.
+        If the value is a single item, it is converted to a float.
+        The parameters extracted from the file are appended to a DataFrame.
 
         Parameters:
-        - filename (str): Name of the output file.
+        - filename (str): The name of the output file.
         - data (pd.DataFrame): DataFrame containing the data.
         - thetas (list): List of viewing angles.
         - log_mstar (float): log of stellar mass.
         - log_mdust_over_mstar (float): log of dust mass over stellar mass.
-        - filepath (str): Path to the output file.
-        Default is '../../data/radiative_transfer/output/'.
+        - filepath (str, optional): The path to the directory containing the
+        output file.
+        Defaults to '../../../data/radiative_transfer/output/'.
 
         Returns:
         - wvl (np.array): Rest-frame wavelength [micron].
@@ -229,16 +279,23 @@ class RadiativeTransferBNN(nn.Module):
             self
             ):
         """
-        Generate the dataset.
+        Compiles the dataset from multiple input and output files.
+
+        This method reads a list of input files and a list of output files
+        from specified directories.
+        Each input file contains parameters which are extracted and stored.
+        Each output file contains data which is read and appended to a
+        DataFrame.
+        The method returns the final compiled dataset and the rest-frame
+        wavelength.
 
         Parameters:
-        - data (pd.DataFrame): DataFrame containing the data.
-        - params (list): List of parameter files.
-        - files (list): List of output files.
+        - None
 
         Returns:
         - wavelength (np.array): Rest-frame wavelength [micron].
-        - data (pd.DataFrame): DataFrame containing the data.
+        - data (pd.DataFrame): DataFrame containing the compiled data from all
+        output files.
         """
 
         input_filepath = "../../../data/radiative_transfer/input/"
@@ -270,6 +327,30 @@ class RadiativeTransferBNN(nn.Module):
         return wavelength, data
 
     def preprocess_data(self):
+        """
+        Preprocesses the dataset for training and testing.
+
+        This method scales the input features and separates the dataset into
+        training and testing subsets.
+        It also assigns a unique run_id to each unique combination of
+        "log_mstar" and "log_mdust_over_mstar".
+        The method then splits the dataset into training and testing subsets
+        based on these run_ids, ensuring that
+        all data from a single run is either in the training set or the
+        testing set, but not both.
+        Finally, it converts the training and testing subsets into PyTorch
+        tensors.
+
+        Parameters:
+        - None
+
+        Returns:
+        - None, but updates the following instance variables:
+            - self.X_train: Training subset of the input features.
+            - self.X_test: Testing subset of the input features.
+            - self.y_train: Training subset of the output features.
+            - self.y_test: Testing subset of the output features.
+        """
         scaler = StandardScaler()
         X = self.df[["log_mstar", "log_mdust_over_mstar", "theta"]].copy()
         X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
@@ -329,18 +410,23 @@ class RadiativeTransferBNN(nn.Module):
             batch_size: int
             ):
         """
-        Train the model using batch training.
+        Trains the Bayesian Neural Network model using batch training.
+
+        This method trains the model using the Mean Squared Error (MSE) loss
+        and the Kullback-Leibler (KL) divergence loss.
+        It creates a DataLoader for batch training, and for each epoch, it
+        iterates over the batches of data,
+        performs forward propagation, calculates the cost (MSE + KL), performs
+        backpropagation, and updates the model parameters.
+        It prints the cost at the end of each epoch and the total training
+        time at the end.
 
         Parameters:
-        - model_attributes (tuple): Tuple containing the initialized model,
-        MSE loss function, KL loss function, KL weight, and optimizer.
-        - input_train (tensor): Input tensor for training.
-        - output_train (tensor): Output tensor for training.
-        - epochs (int): Number of epochs to train the model.
-        - batch_size (int): Batch size for training.
+        - epochs (int): The number of epochs to train the model.
+        - batch_size (int): The batch size for training.
 
         Returns:
-        - The trained model.
+        - None, but updates the model parameters.
         """
 
         print("Training the model...")
@@ -349,8 +435,8 @@ class RadiativeTransferBNN(nn.Module):
 
         # Create a TensorDataset from input and output tensors
         tensor_dataset = TensorDataset(
-            self.X_train,
-            self.y_train
+            torch.Tensor(self.X_train),
+            torch.Tensor(self.y_train)
             )
 
         # Create a DataLoader for batch training
@@ -379,12 +465,20 @@ class RadiativeTransferBNN(nn.Module):
 
     def test_model(self):
         """
-        Test the model.
+        Tests the Bayesian Neural Network model.
+
+        This method sets the model to evaluation mode and performs forward
+        propagation on the testing data.
+        It generates predictions for the testing data multiple times and
+        calculates the mean and standard deviation of these predictions.
+        It then calculates the cost of the model using the Mean Squared Error
+        (MSE) loss and the Kullback-Leibler (KL) divergence loss.
+        Finally, it prints the cost and the time taken to test the model.
 
         Parameters:
-        - model (nn.Module): Trained model.
-        - input_test (tensor): Input tensor for testing.
-        - output_test (tensor): Output tensor for testing.
+        - None, but uses the following instance variables:
+            - self.X_test: Testing subset of the input features.
+            - self.y_test: Testing subset of the output features.
 
         Returns:
         - mean_pred_results (np.array): Mean predicted results.
@@ -417,7 +511,5 @@ class RadiativeTransferBNN(nn.Module):
 model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
 model.compile_dataset()
 model.preprocess_data()
-# model.X_test.to_csv("X_test.csv")
-# model.y_test.to_csv("y_test.csv")
 model.train_model(10, 20)
 mean_pred_results, std_pred_results = model.test_model()
