@@ -199,8 +199,7 @@ class RadiativeTransferBNN(nn.Module):
         return wvl, data.reset_index(drop=True)
 
     def compile_dataset(
-            self,
-            data,
+            self
             ):
         """
         Generate the dataset.
@@ -230,8 +229,18 @@ class RadiativeTransferBNN(nn.Module):
 
         list_log_mstar, list_log_mdust_over_mstar, list_theta = \
             self.read_input_dict(X)
-
         list_theta = (list_theta * np.pi) / 180  # convert to radians
+
+        data = pd.DataFrame(
+            columns=[
+                "log_mstar",
+                "log_mdust_over_mstar",
+                "theta",
+                "n",
+                "flux",
+                "r"
+                ]
+            )
 
         for i in range(len(Y)):
             wavelength, data = self.read_output_file(
