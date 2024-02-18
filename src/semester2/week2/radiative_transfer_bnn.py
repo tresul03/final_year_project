@@ -8,6 +8,7 @@ import torchbnn as bnn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset, DataLoader
 import os
+from sklearn.preprocessing import StandardScaler
 
 
 class RadiativeTransferBNN(nn.Module):
@@ -56,6 +57,7 @@ class RadiativeTransferBNN(nn.Module):
         device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
+        self.denormalise = lambda x, mean, std: x * std + mean
 
         self.mse_loss = nn.MSELoss()
         self.kl_loss = bnn.BKLLoss(reduction='mean')
@@ -260,7 +262,10 @@ class RadiativeTransferBNN(nn.Module):
         return wavelength, data
 
     def preprocess_data(self):
+        scaler = StandardScaler()
         X = self.df[["log_mstar", "log_mdust_over_mstar", "theta"]].copy()
+        X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+
         X["run_id"] = X.groupby([
             "log_mstar",
             "log_mdust_over_mstar"
@@ -311,8 +316,8 @@ class RadiativeTransferBNN(nn.Module):
 
         # Create a TensorDataset from input and output tensors
         tensor_dataset = TensorDataset(
-            input_train,
-            output_train
+            self.X_train,
+            self.y_train
             )
 
         # Create a DataLoader for batch training
@@ -381,8 +386,8 @@ class RadiativeTransferBNN(nn.Module):
 
 # wavelength, h5_data = generate_dataset(pd.DataFrame(columns=["log_mstar", "log_mdust_over_mstar", "theta", "n", "flux", "r"]), parameter_files, h5_files)
 
-# model = RadiativeTransferBNN(1000, 0.3, 0.01)
-# model.compile_dataset()
-# model.preprocess_data()
-# model.X_test.to_csv("X_test.csv")
-# model.y_test.to_csv("y_test.csv")
+model = RadiativeTransferBNN(1000, 0.3, 0.01)
+model.compile_dataset()
+model.preprocess_data()
+model.X_test.to_csv("X_test.csv")
+model.y_test.to_csv("y_test.csv")
