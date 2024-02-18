@@ -201,8 +201,6 @@ class RadiativeTransferBNN(nn.Module):
     def compile_dataset(
             self,
             data,
-            input_files,
-            output_files
             ):
         """
         Generate the dataset.
@@ -217,12 +215,27 @@ class RadiativeTransferBNN(nn.Module):
         - data (pd.DataFrame): DataFrame containing the data.
         """
 
-        list_log_mstar, list_log_mdust_over_mstar, list_theta = \
-            self.read_input_dict(input_files)
+        input_filepath = "../../../data/radiative_transfer/input/"
+        output_filepath = "../../../data/radiative_transfer/output/"
 
-        for i in range(len(output_files)):
+        X = [
+            file for file in os.listdir(input_filepath)
+            if file.startswith("parameters")
+            ]
+
+        Y = [
+            file for file in os.listdir(output_filepath)
+            if file.startswith("data")
+            ]
+
+        list_log_mstar, list_log_mdust_over_mstar, list_theta = \
+            self.read_input_dict(X)
+
+        list_theta = (list_theta * np.pi) / 180  # convert to radians
+
+        for i in range(len(Y)):
             wavelength, data = self.read_output_file(
-                output_files[i],
+                Y[i],
                 data,
                 np.sin(list_theta),
                 list_log_mstar[i],
@@ -320,3 +333,9 @@ class RadiativeTransferBNN(nn.Module):
 
         print(f"- cost: {cost.item():.3f}")
         return mean_pred_results, std_pred_results
+
+
+# parameter_files = [file for file in os.listdir("../../data/radiative_transfer/input/") if file.startswith("parameters")]
+# h5_files = [file for file in os.listdir("../../data/radiative_transfer/output/") if file.startswith("data")]
+
+# wavelength, h5_data = generate_dataset(pd.DataFrame(columns=["log_mstar", "log_mdust_over_mstar", "theta", "n", "flux", "r"]), parameter_files, h5_files)
