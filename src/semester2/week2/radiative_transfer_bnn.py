@@ -9,10 +9,17 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset, DataLoader
 import os
 from sklearn.preprocessing import StandardScaler
+import time
 
 
 class RadiativeTransferBNN(nn.Module):
-    def __init__(self, number_of_neurones, dropout_probablity, learning_rate):
+    def __init__(
+            self,
+            number_of_neurones: int,
+            dropout_probablity: float,
+            learning_rate: float,
+            output_choice: str
+            ):
         super(RadiativeTransferBNN, self).__init__()
 
         self.shared_layer = nn.Sequential(
@@ -54,17 +61,18 @@ class RadiativeTransferBNN(nn.Module):
         )
 
         cuda_available = torch.cuda.is_available()
-        device = torch.device("cuda:0" if cuda_available else "cpu")
+        self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
         self.denormalise = lambda x, mean, std: x * std + mean
 
+        self.output_choice = output_choice
         self.mse_loss = nn.MSELoss()
         self.kl_loss = bnn.BKLLoss(reduction='mean')
         self.kl_weight = 0.01
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
-        self.to(device)  # move the model to the GPU if available
+        self.to(self.device)  # move the model to the GPU if available
         self.df = pd.DataFrame(
             columns=[
                 "log_mstar",
@@ -236,23 +244,23 @@ class RadiativeTransferBNN(nn.Module):
         input_filepath = "../../../data/radiative_transfer/input/"
         output_filepath = "../../../data/radiative_transfer/output/"
 
-        X = [
+        input_files = [
             file for file in os.listdir(input_filepath)
             if file.startswith("parameters")
             ]
 
-        Y = [
+        output_files = [
             file for file in os.listdir(output_filepath)
             if file.startswith("data")
             ]
 
         list_log_mstar, list_log_mdust_over_mstar, list_theta = \
-            self.read_input_dict(X)
+            self.read_input_dict(input_files)
         list_theta = (list_theta * np.pi) / 180  # convert to radians
 
-        for i in range(len(Y)):
+        for i in range(len(output_files)):
             wavelength, data = self.read_output_file(
-                Y[i],
+                output_files[i],
                 self.df,
                 np.sin(list_theta),
                 list_log_mstar[i],
@@ -273,6 +281,7 @@ class RadiativeTransferBNN(nn.Module):
 
         y = self.df[["n", "flux", "r"]].copy()
         y["run_id"] = X["run_id"]
+        y = y[[self.output_choice, "run_id"]]
 
         run_ids = X["run_id"].unique()
         train_runs, test_runs = train_test_split(
@@ -290,10 +299,32 @@ class RadiativeTransferBNN(nn.Module):
         self.y_test = y[y["run_id"].isin(test_runs)]\
             .drop(columns="run_id").reset_index(drop=True)
 
+        self.X_train = self.convert_to_tensor(self.X_train)
+        self.X_test = self.convert_to_tensor(self.X_test)
+        self.y_train = self.convert_to_tensor(self.y_train)
+        self.y_test = self.convert_to_tensor(self.y_test)
+
+    def convert_to_tensor(self, data):
+        """
+        Convert the DataFrame to a tensor.
+
+        Parameters:
+        - data (pd.DataFrame): DataFrame containing the data.
+
+        Returns:
+        - data (tensor): Tensor containing the data.
+        """
+
+        data = data.map(np.array)
+        stacked_input_arrays = np.stack(
+            data.apply(lambda row: np.stack(row, axis=0), axis=1).to_numpy()
+            )
+        data = torch.Tensor(stacked_input_arrays)
+
+        return data
+
     def train_model(
             self,
-            input_train,
-            output_train,
             epochs: int,
             batch_size: int
             ):
@@ -312,6 +343,8 @@ class RadiativeTransferBNN(nn.Module):
         - The trained model.
         """
 
+        print("Training the model...")
+        t0 = time.time()
         self.train()
 
         # Create a TensorDataset from input and output tensors
@@ -327,13 +360,13 @@ class RadiativeTransferBNN(nn.Module):
             shuffle=True
             )
 
-        for _ in range(epochs):
+        for epoch in range(epochs):
             for batch_data, batch_labels in data_loader:
                 self.optimizer.zero_grad()
                 pred = self(batch_data)
 
                 # Calculate cost (MSE + KL)
-                mse = self.mse_loss(pred, batch_labels)
+                mse = self.mse_loss(pred, batch_labels[:, 0, :])
                 kl = self.kl_loss(self)
                 cost = mse + self.kl_weight * kl
 
@@ -341,13 +374,10 @@ class RadiativeTransferBNN(nn.Module):
                 cost.backward()
                 self.optimizer.step()
 
-        print(f"- cost: {cost.item():.3f}")
+            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}")
+        print(f"- this took {time.time() - t0:.2f} seconds")
 
-    def test_model(
-            self,
-            input_test,
-            output_test
-            ):
+    def test_model(self):
         """
         Test the model.
 
@@ -361,10 +391,12 @@ class RadiativeTransferBNN(nn.Module):
         - std_pred_results (np.array): Standard deviation of predicted results.
         """
 
+        print("Testing the model...")
+        t0 = time.time()
         self.eval()
 
         pred = np.array([
-            self(input_test).detach().numpy() for _ in range(500)
+            self(self.X_test).detach().numpy() for _ in range(500)
             ])
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
@@ -372,22 +404,20 @@ class RadiativeTransferBNN(nn.Module):
         # find the cost of the model
         mse = self.mse_loss(
             torch.Tensor(mean_pred_results),
-            torch.Tensor(output_test)
+            torch.Tensor(self.y_test[:, 0, :])
             )
         kl = self.kl_loss(self)
         cost = mse + self.kl_weight * kl
 
         print(f"- cost: {cost.item():.3f}")
+        print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
 
 
-# parameter_files = [file for file in os.listdir("../../data/radiative_transfer/input/") if file.startswith("parameters")]
-# h5_files = [file for file in os.listdir("../../data/radiative_transfer/output/") if file.startswith("data")]
-
-# wavelength, h5_data = generate_dataset(pd.DataFrame(columns=["log_mstar", "log_mdust_over_mstar", "theta", "n", "flux", "r"]), parameter_files, h5_files)
-
-model = RadiativeTransferBNN(1000, 0.3, 0.01)
+model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
 model.compile_dataset()
 model.preprocess_data()
-model.X_test.to_csv("X_test.csv")
-model.y_test.to_csv("y_test.csv")
+# model.X_test.to_csv("X_test.csv")
+# model.y_test.to_csv("y_test.csv")
+model.train_model(10, 20)
+mean_pred_results, std_pred_results = model.test_model()
