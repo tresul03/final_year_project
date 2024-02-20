@@ -88,6 +88,11 @@ class RadiativeTransferBNN(nn.Module):
             self.parameters(),
             lr=self.learning_rate
             )
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.optimizer,
+                    step_size=100,
+                    gamma=0.1
+                    )
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -479,6 +484,7 @@ class RadiativeTransferBNN(nn.Module):
                 batch_size=batch_size,
                 shuffle=True
                 )
+            self.scheduler.step()
 
             for batch_data, batch_labels in data_loader:
                 self.optimizer.zero_grad()
