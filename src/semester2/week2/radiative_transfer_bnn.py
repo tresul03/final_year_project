@@ -90,7 +90,7 @@ class RadiativeTransferBNN(nn.Module):
             )
         self.scheduler = torch.optim.lr_scheduler.StepLR(
                     self.optimizer,
-                    step_size=100,
+                    step_size=250,
                     gamma=0.1
                     )
 
