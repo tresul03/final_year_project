@@ -6,7 +6,6 @@ import torchbnn as bnn
 from sklearn.model_selection import train_test_split
 from torch.utils.data import TensorDataset, DataLoader
 import os
-from sklearn.preprocessing import StandardScaler
 import time
 
 
@@ -375,7 +374,6 @@ class RadiativeTransferBNN(nn.Module):
         """
 
         self.compile_dataset()
-        scaler = StandardScaler()
 
         self.df["run_id"] = self.df.groupby([
             "log_mstar",
@@ -396,12 +394,11 @@ class RadiativeTransferBNN(nn.Module):
         X["theta"] = self.normalise(X["theta"])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
+        y_output_matrix = np.array(y[self.output_choice].to_list())
 
-        y_output_matrix = np.linalg.norm(     # normalise
-            np.array(y[self.output_choice]),  # this matrix
-            axis=1                            # across the columns
-            )
-        y[self.output_choice] = y_output_matrix
+        for i in range(len(y_output_matrix)):
+            y_output_matrix[i] = self.normalise(y_output_matrix[i])
+            y.at[i, self.output_choice] = y_output_matrix[i]
 
         run_ids = X["run_id"].unique()
         train_runs, test_runs = train_test_split(
@@ -490,7 +487,6 @@ class RadiativeTransferBNN(nn.Module):
                 batch_size=batch_size,
                 shuffle=True
                 )
-            self.scheduler.step()
 
             for batch_data, batch_labels in data_loader:
                 self.optimizer.zero_grad()
@@ -505,7 +501,10 @@ class RadiativeTransferBNN(nn.Module):
                 cost.backward()
                 self.optimizer.step()
 
-            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: {kl.item():.3f}")
+            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: \
+                {kl.item():.3f}"
+                )
+        self.scheduler.step()
         print(f"- this took {time.time() - t0:.2f} seconds")
 
     def test_model(self):
@@ -551,9 +550,3 @@ class RadiativeTransferBNN(nn.Module):
         print(f"- cost: {cost.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
-
-
-# model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
-# model.preprocess_data()
-# model.train_model(10, 20)
-# mean_pred_results, std_pred_results = model.test_model()
