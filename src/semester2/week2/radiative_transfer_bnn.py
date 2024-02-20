@@ -39,38 +39,38 @@ class RadiativeTransferBNN(nn.Module):
                 prior_mu=0,
                 prior_sigma=0.1,
                 in_features=3,
-                out_features=number_of_neurones
+                out_features=self.number_of_neurones
             ),
-            nn.BatchNorm1d(number_of_neurones),
+            nn.BatchNorm1d(self.number_of_neurones),
             nn.ReLU(),
-            nn.Dropout(dropout_probablity),
+            nn.Dropout(self.dropout_probablity),
 
             bnn.BayesLinear(  # 1st hidden layer
                 prior_mu=0,
                 prior_sigma=0.1,
-                in_features=number_of_neurones,
-                out_features=number_of_neurones
+                in_features=self.number_of_neurones,
+                out_features=self.number_of_neurones
             ),
-            nn.BatchNorm1d(number_of_neurones),
+            nn.BatchNorm1d(self.number_of_neurones),
             nn.ReLU(),
-            nn.Dropout(dropout_probablity),
+            nn.Dropout(self.dropout_probablity),
 
             bnn.BayesLinear(  # 2nd hidden layer
                 prior_mu=0,
                 prior_sigma=0.1,
-                in_features=number_of_neurones,
-                out_features=number_of_neurones
+                in_features=self.number_of_neurones,
+                out_features=self.number_of_neurones
             ),
-            nn.BatchNorm1d(number_of_neurones),
+            nn.BatchNorm1d(self.number_of_neurones),
             nn.ReLU(),
-            nn.Dropout(dropout_probablity),
+            nn.Dropout(self.dropout_probablity),
         )
 
         self.output_layer = nn.Sequential(
             bnn.BayesLinear(
                 prior_mu=0,
-                prior_sigma=0.1,
-                in_features=number_of_neurones,
+                prior_sigma=1,
+                in_features=self.number_of_neurones,
                 out_features=113
             )
         )
