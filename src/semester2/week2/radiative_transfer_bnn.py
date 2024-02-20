@@ -421,8 +421,8 @@ class RadiativeTransferBNN(nn.Module):
 
         self.X_train = self.convert_to_tensor(self.X_train)
         self.X_test = self.convert_to_tensor(self.X_test)
-        self.y_train = self.convert_to_tensor(self.y_train)
-        self.y_test = self.convert_to_tensor(self.y_test)
+        self.y_train = self.convert_to_tensor(self.y_train)[:, 0, :]
+        self.y_test = self.convert_to_tensor(self.y_test)[:, 0, :]
 
     def convert_to_tensor(self, data):
         """
@@ -491,7 +491,7 @@ class RadiativeTransferBNN(nn.Module):
                 pred = self(batch_data)
 
                 # Calculate cost (MSE + KL)
-                mse = self.mse_loss(pred, batch_labels[:, 0, :])
+                mse = self.mse_loss(pred, batch_labels)
                 kl = self.kl_loss(self)
                 cost = mse + self.kl_weight * kl
 
@@ -537,7 +537,7 @@ class RadiativeTransferBNN(nn.Module):
         # find the cost of the model
         mse = self.mse_loss(
             torch.Tensor(mean_pred_results),
-            torch.Tensor(self.y_test[:, 0, :])
+            torch.Tensor(self.y_test)
             )
         kl = self.kl_loss(self)
         cost = mse + self.kl_weight * kl
