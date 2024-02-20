@@ -1,0 +1,7 @@
+Good paramaters for v4
+
+run_improved_BNN(input_size, hidden_size1, hidden_size2, dropout_prob, lr, train_inputs, train_outputs, epochs, batch_size, test_inputs, test_outputs):
+
+run_improved_BNN(3, 1000, 500, 0.5, 0.01, train_inputs, train_outputs[:, 0, :], 20, 33, test_inputs, test_outputs[:, 0, :])
+
+
