@@ -29,6 +29,11 @@ class RadiativeTransferBNN(nn.Module):
             ):
         super(RadiativeTransferBNN, self).__init__()
 
+        self.number_of_neurones = number_of_neurones
+        self.dropout_probablity = dropout_probablity
+        self.learning_rate = learning_rate
+        self.output_choice = output_choice
+
         self.shared_layer = nn.Sequential(
             bnn.BayesLinear(  # input layer
                 prior_mu=0,
@@ -36,6 +41,7 @@ class RadiativeTransferBNN(nn.Module):
                 in_features=3,
                 out_features=number_of_neurones
             ),
+            nn.BatchNorm1d(number_of_neurones),
             nn.ReLU(),
             nn.Dropout(dropout_probablity),
 
@@ -45,6 +51,7 @@ class RadiativeTransferBNN(nn.Module):
                 in_features=number_of_neurones,
                 out_features=number_of_neurones
             ),
+            nn.BatchNorm1d(number_of_neurones),
             nn.ReLU(),
             nn.Dropout(dropout_probablity),
 
@@ -54,6 +61,7 @@ class RadiativeTransferBNN(nn.Module):
                 in_features=number_of_neurones,
                 out_features=number_of_neurones
             ),
+            nn.BatchNorm1d(number_of_neurones),
             nn.ReLU(),
             nn.Dropout(dropout_probablity),
         )
@@ -73,11 +81,13 @@ class RadiativeTransferBNN(nn.Module):
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
         self.denormalise = lambda x, mean, std: x * std + mean
 
-        self.output_choice = output_choice
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
         self.kl_weight = 0.01
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.learning_rate
+            )
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
