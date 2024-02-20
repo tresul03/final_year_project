@@ -83,7 +83,7 @@ class RadiativeTransferBNN(nn.Module):
 
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
-        self.kl_weight = 0.01
+        self.kl_weight = 0.1
         self.optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.learning_rate
