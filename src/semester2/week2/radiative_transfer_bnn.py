@@ -375,7 +375,7 @@ class RadiativeTransferBNN(nn.Module):
         """
 
         self.compile_dataset()
-        # scaler = StandardScaler()
+        scaler = StandardScaler()
 
         self.df["run_id"] = self.df.groupby([
             "log_mstar",
@@ -396,6 +396,12 @@ class RadiativeTransferBNN(nn.Module):
         X["theta"] = self.normalise(X["theta"])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
+
+        y_output_matrix = np.linalg.norm(     # normalise
+            np.array(y[self.output_choice]),  # this matrix
+            axis=1                            # across the columns
+            )
+        y[self.output_choice] = y_output_matrix
 
         run_ids = X["run_id"].unique()
         train_runs, test_runs = train_test_split(
