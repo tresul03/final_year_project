@@ -69,7 +69,7 @@ class RadiativeTransferBNN(nn.Module):
         self.output_layer = nn.Sequential(
             bnn.BayesLinear(
                 prior_mu=0,
-                prior_sigma=1,
+                prior_sigma=0.1,
                 in_features=self.number_of_neurones,
                 out_features=113
             )
