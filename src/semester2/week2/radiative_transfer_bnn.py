@@ -74,12 +74,17 @@ class RadiativeTransferBNN(nn.Module):
         self.denormalise = lambda x, mean, std: x * std + mean
 
         self.output_choice = output_choice
-        self.mse_loss = nn.MSELoss()
-        self.kl_loss = bnn.BKLLoss(reduction='mean')
+        self.mse_loss = nn.MSELoss().to(self.device)
+        self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
         self.kl_weight = 0.01
         self.optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
-        self.to(self.device)  # move the model to the GPU if available
+        self.X_train = torch.Tensor().to(self.device)
+        self.X_test = torch.Tensor().to(self.device)
+        self.y_train = torch.Tensor().to(self.device)
+        self.y_test = torch.Tensor().to(self.device)
+        self.wavelength = np.array([])
+
         self.df = pd.DataFrame(
             columns=[
                 "log_mstar",
@@ -91,10 +96,7 @@ class RadiativeTransferBNN(nn.Module):
                 ]
             )
 
-        self.X_train = torch.Tensor()
-        self.X_test = torch.Tensor()
-        self.y_train = torch.Tensor()
-        self.y_test = torch.Tensor()
+        self.to(self.device)  # move the model to the GPU if available
 
     def forward(self, x):
         """
@@ -261,6 +263,7 @@ class RadiativeTransferBNN(nn.Module):
             r = table['r'].to_numpy(dtype=np.float64)  # [kpc]
             n = table['n'].to_numpy(dtype=np.float64)
 
+            self.wavelength = wvl
             flux = np.log10(flux)
             r = np.log10(r)
             n = np.log10(n)
@@ -275,7 +278,7 @@ class RadiativeTransferBNN(nn.Module):
                     "flux": [flux],
                     "r": [r]
                     })
-                ], ignore_index=True)
+                ], ignore_index=True).reset_index(drop=True)
 
         return wvl, self.df.reset_index(drop=True)
 
@@ -357,18 +360,27 @@ class RadiativeTransferBNN(nn.Module):
         """
 
         self.compile_dataset()
-        scaler = StandardScaler()
-        X = self.df[["log_mstar", "log_mdust_over_mstar", "theta"]].copy()
-        X = pd.DataFrame(scaler.fit_transform(X), columns=X.columns)
+        # scaler = StandardScaler()
 
-        X["run_id"] = X.groupby([
+        self.df["run_id"] = self.df.groupby([
             "log_mstar",
             "log_mdust_over_mstar"
             ]).ngroup()
+        self.df["angle_id"] = self.df.index % 10
 
-        y = self.df[["n", "flux", "r"]].copy()
-        y["run_id"] = X["run_id"]
-        y = y[[self.output_choice, "run_id"]]
+        X = self.df[[
+            "log_mstar",
+            "log_mdust_over_mstar",
+            "theta",
+            "run_id",
+            "angle_id"
+            ]].copy()
+
+        X["log_mstar"] = self.normalise(X["log_mstar"])
+        X["log_mdust_over_mstar"] = self.normalise(X["log_mdust_over_mstar"])
+        X["theta"] = self.normalise(X["theta"])
+
+        y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
 
         run_ids = X["run_id"].unique()
         train_runs, test_runs = train_test_split(
@@ -377,14 +389,20 @@ class RadiativeTransferBNN(nn.Module):
             random_state=42
             )
 
-        self.X_train = X[X["run_id"].isin(train_runs)]\
-            .drop(columns="run_id").reset_index(drop=True)
-        self.X_test = X[X["run_id"].isin(test_runs)]\
-            .drop(columns="run_id").reset_index(drop=True)
-        self.y_train = y[y["run_id"].isin(train_runs)]\
-            .drop(columns="run_id").reset_index(drop=True)
-        self.y_test = y[y["run_id"].isin(test_runs)]\
-            .drop(columns="run_id").reset_index(drop=True)
+        self.X_train = X[X["run_id"].isin(train_runs)]
+        self.X_test = X[X["run_id"].isin(test_runs)]
+        self.y_train = y[y["run_id"].isin(train_runs)]
+        self.y_test = y[y["run_id"].isin(test_runs)]
+
+        # order the datasets by both run_id and theta, then drop run_id
+        self.X_train = self.X_train.sort_values(by=["run_id", "angle_id"])\
+            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
+        self.X_test = self.X_test.sort_values(by=["run_id", "angle_id"])\
+            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
+        self.y_train = self.y_train.sort_values(by=["run_id", "angle_id"])\
+            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
+        self.y_test = self.y_test.sort_values(by=["run_id", "angle_id"])\
+            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
 
         self.X_train = self.convert_to_tensor(self.X_train)
         self.X_test = self.convert_to_tensor(self.X_test)
@@ -445,14 +463,13 @@ class RadiativeTransferBNN(nn.Module):
             torch.Tensor(self.y_train)
             )
 
-        # Create a DataLoader for batch training
-        data_loader = DataLoader(
-            tensor_dataset,
-            batch_size=batch_size,
-            shuffle=True
-            )
-
         for epoch in range(epochs):
+            data_loader = DataLoader(
+                tensor_dataset,
+                batch_size=batch_size,
+                shuffle=True
+                )
+
             for batch_data, batch_labels in data_loader:
                 self.optimizer.zero_grad()
                 pred = self(batch_data)
@@ -466,7 +483,7 @@ class RadiativeTransferBNN(nn.Module):
                 cost.backward()
                 self.optimizer.step()
 
-            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}")
+            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: {kl.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
 
     def test_model(self):
@@ -514,7 +531,7 @@ class RadiativeTransferBNN(nn.Module):
         return mean_pred_results, std_pred_results
 
 
-model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
-model.preprocess_data()
-model.train_model(10, 20)
-mean_pred_results, std_pred_results = model.test_model()
+# model = RadiativeTransferBNN(1000, 0.3, 0.01, "n")
+# model.preprocess_data()
+# model.train_model(10, 20)
+# mean_pred_results, std_pred_results = model.test_model()
