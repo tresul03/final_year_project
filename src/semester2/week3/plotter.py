@@ -6,49 +6,41 @@ class Plotter:
         self.fig, self.ax = plt.subplots()
 
     def plot_line(self, x, y, label=None, color=None):
-        # Plot a line on the existing axis
+        # Plot a line on the existing axis using provided x and y data
         self.ax.plot(x, y, label=label, color=color)
 
-    def scatter_plot(self, x, y, label=None, color=None, marker='o'):
-        # Create a scatter plot on the existing axis
-        self.ax.scatter(x, y, label=label, color=color, marker=marker)
+    def plot_group(self, x, y,test_inputs, test_output):
 
-    def set_title(self, title):
-        # Set the title of the plot
-        self.ax.set_title(title)
+        i = 0
 
-    def set_xlabel(self, xlabel):
-        # Set the label for the x-axis
-        self.ax.set_xlabel(xlabel)
+        while i <24:
 
-    def set_ylabel(self, ylabel):
-        # Set the label for the y-axis
-        self.ax.set_ylabel(ylabel)
+            fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
 
-    def show_plot(self):
-        # Display the plot with legend
-        self.ax.legend()
-        plt.show()
+            ax1.plot(x,test_output[i,0,:],color='black',lw=3,label=f'SKIRT Model: input = {test_inputs[i,0]:2.2f}, {test_inputs[i,1]:2.2f}, {test_inputs[i,2]:2.2f}')
+            ax1.plot(x,y[i,:],color='darkorange',lw=3,label='Predicted Mean Model')
+            ax2.plot(x,test_output[i+1,0,:],color='black',lw=3,label=f'SKIRT Model: input = {test_inputs[i+1,0]:2.2f}, {test_inputs[i+1,1]:2.2f}, {test_inputs[i+1,2]:2.2f}')
+            ax2.plot(x,y[i+1,:],color='darkorange',lw=3,label='Predicted Mean Model')
+            ax3.plot(x,test_output[i+2,0,:],color='black',lw=3,label=f'SKIRT Model: input = {test_inputs[i+2,0]:2.2f}, {test_inputs[i+2,1]:2.2f}, {test_inputs[i+2,2]:2.2f}')
+            ax3.plot(x,y[i+2,:],color='darkorange',lw=3,label='Predicted Mean Model')
+            ax4.plot(x,test_output[i+3,0,:],color='black',lw=3,label=f'SKIRT Model: input = {test_inputs[i+3,0]:2.2f}, {test_inputs[i+3,1]:2.2f}, {test_inputs[i+3,2]:2.2f}')
+            ax4.plot(x,y[i+3,:],color='darkorange',lw=3,label='Predicted Mean Model')
 
-# Example usage:
-if __name__ == "__main__":
-    # Create an instance of the Plotter class
-    plotter = Plotter()
 
-    # Example data
-    x_data = [1, 2, 3, 4, 5]
-    y_data = [2, 4, 6, 8, 10]
+            for ax in fig.get_axes():
+                #ax.label_outer()
+                ax.set(xlabel=f'Wavelength($\\mu$m)', ylabel='Sersic Index (Normalised)')
+                ax.set_xscale('log')
+                ax.legend()
 
-    # Plot a line
-    plotter.plot_line(x_data, y_data, label='Line Plot', color='blue')
 
-    # Plot a scatter plot
-    plotter.scatter_plot(x_data, y_data, label='Scatter Plot', color='red', marker='o')
+            plt.tight_layout()
 
-    # Set plot title and axis labels
-    plotter.set_title('Example Plot')
-    plotter.set_xlabel('X-axis')
-    plotter.set_ylabel('Y-axis')
+            ax.legend()
+            plt.show()
+            plt.close()
+            
+            
+            i = i+4
 
-    # Show the plot
-    plotter.show_plot()
+                
