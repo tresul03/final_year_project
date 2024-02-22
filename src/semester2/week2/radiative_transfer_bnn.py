@@ -405,6 +405,8 @@ class RadiativeTransferBNN(nn.Module):
             run_ids,
             test_size=0.2,
             random_state=42
+            # shuffle = False,
+            # stratify = None
             )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
