@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Plotter:
-    def __init__(self, x, y,test_inputs, test_output):
+    def __init__(self, x, y,test_inputs, test_output, output = 'n'):
         # # Initialize the plotter with an empty figure and axis
         # self.fig, self.ax = plt.subplots()
         self.y = y
@@ -10,6 +10,8 @@ class Plotter:
         self.test_inputs = test_inputs
         self.test_output = test_output
         self.figure = None 
+        self.dict = {'n':'Sersic Index', 'f':'Flux', 'r':'Half-Radius'}
+        self.output = output
 
         #need to add whether it is plotting n,f or r
 
@@ -56,13 +58,14 @@ class Plotter:
 
     def plot_single(self, i:int =0, color1:str = 'blue', color2:str = 'red'):
 
-        self.figure = plt.figure(figsize=(15, 5))
+        self.figure, ax = plt.subplots(figsize=(15, 5))
 
-        plt.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i,0]:2.2f}, {self.test_inputs[i,1]:2.2f}, {self.test_inputs[i,2]:2.2f}')
-        plt.plot(self.x,self.y[i,:],color= color2,lw=3,label='Predicted Mean Model')
+
+        ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i,0]:2.2f}, {self.test_inputs[i,1]:2.2f}, {self.test_inputs[i,2]:2.2f}')
+        ax.plot(self.x,self.y[i,:],color= color2,lw=3,label='Predicted Mean Model')
 
         plt.xlabel(f'Wavelength($\\mu$m)')
-        plt.ylabel('Sersic Index (Normalised)')
+        plt.ylabel(f'{self.dict[self.output]} (Normalised)')
         plt.xscale('log')
         plt.legend()
 
@@ -103,7 +106,7 @@ class Plotter:
         plt.close()
 
 
-    def save_figure(self, filename):
+    def save_figure(self, filename = "figure.png"):
         if self.figure is not None:
             self.figure.savefig(filename)
             print(f"Figure saved as {filename}")
