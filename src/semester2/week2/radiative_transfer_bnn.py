@@ -558,6 +558,67 @@ class RadiativeTransferBNN(nn.Module):
         print(f"- cost: {cost.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
+    
+    def create_predict_tensor(self, log_mstar, log_mdust, theta):
+        """
+        Creates a tensor for predicting the output.
+
+        This method takes the input features and converts them into a tensor
+        for predicting the output.
+
+        Parameters:
+        - log_mstar (tensor): log of stellar mass.
+        - log_mdust (tensor): log of dust mass.
+        - theta (tensor): viewing angle(in degrees).
+
+        Returns:
+        - tensor (tensor): Tensor containing the input features.
+        """
+
+        # log_mstar = np.array(log_mstar)
+        # log_mdust = np.array(log_mdust)
+        # theta = np.array(theta)
+
+        theta = (theta * np.pi) / 180  # convert to radians
+
+        log_mdust_over_mstar = log_mdust - log_mstar
+
+
+        tensor = torch.Tensor(
+            np.array([log_mstar, log_mdust_over_mstar, theta])
+            ).to(self.device)
+
+        return tensor
+    
+    def predict(self, X):
+        """
+        Predicts the output using the Bayesian Neural Network model.
+
+        This method sets the model to evaluation mode and performs forward
+        propagation on the input data.
+        It generates predictions for the input data multiple times and
+        calculates the mean and standard deviation of these predictions.
+
+        Parameters:
+        - X (tensor): Input tensor.
+
+        Returns:
+        - mean_pred_results (np.array): Mean predicted results.
+        - std_pred_results (np.array): Standard deviation of predicted results.
+        """
+
+        self.eval()
+        pred = np.array([
+            self(X).detach().numpy() for _ in range(500)
+            ])
+
+        pred = self.postprocess_data(pred)
+        mean_pred_results = np.mean(pred, axis=0)
+        std_pred_results = np.std(pred, axis=0)
+
+        return mean_pred_results, std_pred_results
+    
+
 
     def postprocess_data(self, pred):
         y_output_matrix = np.array(
