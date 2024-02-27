@@ -38,6 +38,7 @@ class RadiativeTransferBNN(nn.Module):
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
+        self.externally_normalisee = lambda x, mean, std: (x - mean) / std
         self.denormalise = lambda x, mean, std: (x * std) + mean
 
         self.mse_loss = nn.MSELoss().to(self.device)
