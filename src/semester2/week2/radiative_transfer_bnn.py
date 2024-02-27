@@ -536,6 +536,10 @@ class RadiativeTransferBNN(nn.Module):
         pred = np.array([
             self(self.X_test).detach().numpy() for _ in range(500)
             ])
+
+        pred = self.postprocess_data(pred)
+        print(pred.shape)
+
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
 
@@ -550,3 +554,30 @@ class RadiativeTransferBNN(nn.Module):
         print(f"- cost: {cost.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
+
+    def postprocess_data(self, pred):
+        for i, column_name in enumerate(
+            self.df[[
+                "log_mstar",
+                "log_mdust_over_mstar",
+                "theta"
+                ]].columns
+                ):
+
+            self.X_test[:, 0] = self.denormalise(
+                self.X_test[:, 0],
+                np.mean(self.df[column_name]),
+                np.std(self.df[column_name])
+                )
+
+        y_output_matrix = np.array(self.df[self.output_choice].copy().to_list())
+
+        for prediction_iter in pred:
+            for i, row in enumerate(prediction_iter.T):
+                row = self.denormalise(
+                    row,
+                    np.mean(y_output_matrix.T[i]),
+                    np.std(y_output_matrix.T[i])
+                    )
+
+        return pred
