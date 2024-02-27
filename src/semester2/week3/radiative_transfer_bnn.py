@@ -587,6 +587,8 @@ class RadiativeTransferBNN(nn.Module):
         tensor = torch.Tensor(
             np.array([log_mstar, log_mdust_over_mstar, theta])
             ).to(self.device)
+        
+        tensor = torch.transpose(tensor, 0, 1)
 
         return tensor
     
@@ -606,13 +608,15 @@ class RadiativeTransferBNN(nn.Module):
         - mean_pred_results (np.array): Mean predicted results.
         - std_pred_results (np.array): Standard deviation of predicted results.
         """
-
+        print("Predicting the output...")
+        
         self.eval()
         pred = np.array([
             self(X).detach().numpy() for _ in range(500)
             ])
 
         pred = self.postprocess_data(pred)
+        print(pred.shape)
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
 
