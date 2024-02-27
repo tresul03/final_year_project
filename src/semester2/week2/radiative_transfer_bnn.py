@@ -407,8 +407,6 @@ class RadiativeTransferBNN(nn.Module):
             run_ids,
             test_size=0.2,
             random_state=42
-            #shuffle = False,
-            #stratify = None
             )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
@@ -603,3 +601,18 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
         return pred
+
+    def save_model(self, filename: str):
+        """
+        Saves the model to a file.
+
+        This method saves the model to a file using the provided filename.
+
+        Parameters:
+        - filename (str): The name of the file to save the model to.
+
+        Returns:
+        - None, but saves the model to a file.
+        """
+
+        torch.save(self.state_dict(), filename)
