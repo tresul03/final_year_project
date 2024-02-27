@@ -78,7 +78,7 @@ class RadiativeTransferBNN(nn.Module):
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
-        self.denormalise = lambda x, mean, std: (x * std) + mean
+        self.denormalise = lambda x, mean, std: x * std + mean
 
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
@@ -394,9 +394,7 @@ class RadiativeTransferBNN(nn.Module):
         X["theta"] = self.normalise(X["theta"])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
-        y_output_matrix = np.array(
-            self.df[self.output_choice].copy().to_list()
-            )
+        y_output_matrix = np.array(y[self.output_choice].to_list())
 
         for i in range(len(y_output_matrix)):
             y_output_matrix[i] = self.normalise(y_output_matrix[i])
@@ -407,8 +405,6 @@ class RadiativeTransferBNN(nn.Module):
             run_ids,
             test_size=0.2,
             random_state=42
-            #shuffle = False,
-            #stratify = None
             )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
@@ -540,10 +536,6 @@ class RadiativeTransferBNN(nn.Module):
         pred = np.array([
             self(self.X_test).detach().numpy() for _ in range(500)
             ])
-
-        pred = self.postprocess_data(pred)
-        print(pred.shape)
-
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
 
@@ -558,48 +550,3 @@ class RadiativeTransferBNN(nn.Module):
         print(f"- cost: {cost.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
-
-    def postprocess_data(self, pred):
-        y_output_matrix = np.array(
-            self.df[self.output_choice].copy().to_list()
-            )
-
-        def denormalise_matrix(matrix, y_output_matrix):
-            for i, row in enumerate(matrix.T):
-                row = self.denormalise(
-                    row,
-                    np.mean(y_output_matrix.T[i]),
-                    np.std(y_output_matrix.T[i])
-                    )
-
-            return matrix
-
-        # denormalise the test inputs
-        for i, column_name in enumerate(
-            self.df[[
-                "log_mstar",
-                "log_mdust_over_mstar",
-                "theta"
-                ]].copy().columns
-                ):
-
-            self.X_test[:, i] = self.denormalise(
-                self.X_test[:, i],
-                np.mean(self.df[column_name]),
-                np.std(self.df[column_name])
-                )
-
-        # denormalise the test outputs
-        self.y_test = denormalise_matrix(
-            self.y_test,
-            y_output_matrix
-            )
-
-        # denormalise the predictions
-        for prediction_iter in pred:
-            prediction_iter = denormalise_matrix(
-                prediction_iter,
-                y_output_matrix
-                )
-
-        return pred
