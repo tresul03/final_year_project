@@ -19,6 +19,7 @@ class Plotter:
 
     def plot_group_same(self, i:int =0, j:int = 16, color1:str = 'blue', color2:str = 'red'):
 
+
         while i < j:
 
 
