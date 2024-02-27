@@ -556,6 +556,17 @@ class RadiativeTransferBNN(nn.Module):
         return mean_pred_results, std_pred_results
 
     def postprocess_data(self, pred):
+
+        def denormalise_matrix(matrix, y_output_matrix):
+            for i, row in enumerate(matrix.T):
+                row = self.denormalise(
+                    row,
+                    np.mean(y_output_matrix.T[i]),
+                    np.std(y_output_matrix.T[i])
+                    )
+
+            return matrix
+
         for i, column_name in enumerate(
             self.df[[
                 "log_mstar",
@@ -573,11 +584,9 @@ class RadiativeTransferBNN(nn.Module):
         y_output_matrix = np.array(self.df[self.output_choice].copy().to_list())
 
         for prediction_iter in pred:
-            for i, row in enumerate(prediction_iter.T):
-                row = self.denormalise(
-                    row,
-                    np.mean(y_output_matrix.T[i]),
-                    np.std(y_output_matrix.T[i])
-                    )
+            prediction_iter = denormalise_matrix(
+                prediction_iter,
+                y_output_matrix
+                )
 
         return pred
