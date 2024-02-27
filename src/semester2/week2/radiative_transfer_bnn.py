@@ -24,7 +24,8 @@ class RadiativeTransferBNN(nn.Module):
             number_of_neurones: int,
             dropout_probablity: float,
             learning_rate: float,
-            output_choice: str
+            output_choice: str,
+            saved_model_filename=None
             ):
         super(RadiativeTransferBNN, self).__init__()
 
@@ -32,47 +33,6 @@ class RadiativeTransferBNN(nn.Module):
         self.dropout_probablity = dropout_probablity
         self.learning_rate = learning_rate
         self.output_choice = output_choice
-
-        self.shared_layer = nn.Sequential(
-            bnn.BayesLinear(  # input layer
-                prior_mu=0,
-                prior_sigma=0.1,
-                in_features=3,
-                out_features=self.number_of_neurones
-            ),
-            nn.BatchNorm1d(self.number_of_neurones),
-            nn.ReLU(),
-            nn.Dropout(self.dropout_probablity),
-
-            bnn.BayesLinear(  # 1st hidden layer
-                prior_mu=0,
-                prior_sigma=0.1,
-                in_features=self.number_of_neurones,
-                out_features=self.number_of_neurones
-            ),
-            nn.BatchNorm1d(self.number_of_neurones),
-            nn.ReLU(),
-            nn.Dropout(self.dropout_probablity),
-
-            bnn.BayesLinear(  # 2nd hidden layer
-                prior_mu=0,
-                prior_sigma=0.1,
-                in_features=self.number_of_neurones,
-                out_features=self.number_of_neurones
-            ),
-            nn.BatchNorm1d(self.number_of_neurones),
-            nn.ReLU(),
-            nn.Dropout(self.dropout_probablity),
-        )
-
-        self.output_layer = nn.Sequential(
-            bnn.BayesLinear(
-                prior_mu=0,
-                prior_sigma=0.1,
-                in_features=self.number_of_neurones,
-                out_features=113
-            )
-        )
 
         cuda_available = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
@@ -110,7 +70,53 @@ class RadiativeTransferBNN(nn.Module):
                 ]
             )
 
-        self.to(self.device)  # move the model to the GPU if available
+        # if a saved model is not provided, create a new model, else load it
+        if saved_model_filename is None:
+            self.shared_layer = nn.Sequential(
+                bnn.BayesLinear(  # input layer
+                    prior_mu=0,
+                    prior_sigma=0.1,
+                    in_features=3,
+                    out_features=self.number_of_neurones
+                ),
+                nn.BatchNorm1d(self.number_of_neurones),
+                nn.ReLU(),
+                nn.Dropout(self.dropout_probablity),
+
+                bnn.BayesLinear(  # 1st hidden layer
+                    prior_mu=0,
+                    prior_sigma=0.1,
+                    in_features=self.number_of_neurones,
+                    out_features=self.number_of_neurones
+                ),
+                nn.BatchNorm1d(self.number_of_neurones),
+                nn.ReLU(),
+                nn.Dropout(self.dropout_probablity),
+
+                bnn.BayesLinear(  # 2nd hidden layer
+                    prior_mu=0,
+                    prior_sigma=0.1,
+                    in_features=self.number_of_neurones,
+                    out_features=self.number_of_neurones
+                ),
+                nn.BatchNorm1d(self.number_of_neurones),
+                nn.ReLU(),
+                nn.Dropout(self.dropout_probablity),
+            )
+
+            self.output_layer = nn.Sequential(
+                bnn.BayesLinear(
+                    prior_mu=0,
+                    prior_sigma=0.1,
+                    in_features=self.number_of_neurones,
+                    out_features=113
+                )
+            )
+
+        else:
+            self.load_state_dict(torch.load(saved_model_filename))
+
+        self.to(self.device)
 
     def forward(self, x):
         """
