@@ -44,15 +44,6 @@ class RadiativeTransferBNN(nn.Module):
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
         self.kl_weight = 0.1
-        self.optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.learning_rate
-            )
-        self.scheduler = torch.optim.lr_scheduler.StepLR(
-                    self.optimizer,
-                    step_size=250,
-                    gamma=0.1
-                    )
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -118,6 +109,17 @@ class RadiativeTransferBNN(nn.Module):
             self.load_state_dict(torch.load(saved_model_filename))
 
         self.to(self.device)
+
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.learning_rate
+            )
+        
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.optimizer,
+                    step_size=250,
+                    gamma=0.1
+                    )
 
     def forward(self, x):
         """
@@ -563,7 +565,7 @@ class RadiativeTransferBNN(nn.Module):
         print(f"- cost: {cost.item():.3f}")
         print(f"- this took {time.time() - t0:.2f} seconds")
         return mean_pred_results, std_pred_results
-    
+
     def create_predict_tensor(self, log_mstar, log_mdust, theta):
         """
         Creates a tensor for predicting the output.
@@ -580,21 +582,18 @@ class RadiativeTransferBNN(nn.Module):
         - tensor (tensor): Tensor containing the input features.
         """
 
-        # log_mstar = np.array(log_mstar)
-        # log_mdust = np.array(log_mdust)
-        # theta = np.array(theta)
-
         theta = (theta * np.pi) / 180  # convert to radians
 
         log_mdust_over_mstar = log_mdust - log_mstar
 
-
         tensor = torch.Tensor(
             np.array([log_mstar, log_mdust_over_mstar, theta])
             ).to(self.device)
+        
+        tensor = torch.transpose(tensor, 0, 1)
 
         return tensor
-    
+
     def predict(self, X):
         """
         Predicts the output using the Bayesian Neural Network model.
@@ -611,19 +610,26 @@ class RadiativeTransferBNN(nn.Module):
         - mean_pred_results (np.array): Mean predicted results.
         - std_pred_results (np.array): Standard deviation of predicted results.
         """
+        print("Predicting the output...")
+
+        X = X.cpu().detach().numpy()
+        X_norm = self.externally_normalisee(X, )
+        X_norm = torch.Tensor(X).to(self.device)
 
         self.eval()
         pred = np.array([
-            self(X).detach().numpy() for _ in range(500)
+            self(X_norm).detach().numpy() for _ in range(500)
             ])
 
         pred = self.postprocess_data(pred)
+        print(pred.shape)
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
 
-        return mean_pred_results, std_pred_results
-    
+        self.denormalise(mean_pred_results, np.mean(X), np.std(X))
+        self.denormalise(std_pred_results, np.mean(X), np.std(X))
 
+        return mean_pred_results, std_pred_results
 
     def postprocess_data(self, pred):
         y_output_matrix = np.array(

@@ -24,8 +24,7 @@ class RadiativeTransferBNN(nn.Module):
             number_of_neurones: int,
             dropout_probablity: float,
             learning_rate: float,
-            output_choice: str,
-            saved_model_filename=None
+            output_choice: str
             ):
         super(RadiativeTransferBNN, self).__init__()
 
@@ -34,11 +33,51 @@ class RadiativeTransferBNN(nn.Module):
         self.learning_rate = learning_rate
         self.output_choice = output_choice
 
+        self.shared_layer = nn.Sequential(
+            bnn.BayesLinear(  # input layer
+                prior_mu=0,
+                prior_sigma=0.1,
+                in_features=3,
+                out_features=self.number_of_neurones
+            ),
+            nn.BatchNorm1d(self.number_of_neurones),
+            nn.ReLU(),
+            nn.Dropout(self.dropout_probablity),
+
+            bnn.BayesLinear(  # 1st hidden layer
+                prior_mu=0,
+                prior_sigma=0.1,
+                in_features=self.number_of_neurones,
+                out_features=self.number_of_neurones
+            ),
+            nn.BatchNorm1d(self.number_of_neurones),
+            nn.ReLU(),
+            nn.Dropout(self.dropout_probablity),
+
+            bnn.BayesLinear(  # 2nd hidden layer
+                prior_mu=0,
+                prior_sigma=0.1,
+                in_features=self.number_of_neurones,
+                out_features=self.number_of_neurones
+            ),
+            nn.BatchNorm1d(self.number_of_neurones),
+            nn.ReLU(),
+            nn.Dropout(self.dropout_probablity),
+        )
+
+        self.output_layer = nn.Sequential(
+            bnn.BayesLinear(
+                prior_mu=0,
+                prior_sigma=0.1,
+                in_features=self.number_of_neurones,
+                out_features=113
+            )
+        )
+
         cuda_available = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
-        self.externally_normalisee = lambda x, mean, std: (x - mean) / std
         self.denormalise = lambda x, mean, std: (x * std) + mean
 
         self.mse_loss = nn.MSELoss().to(self.device)
@@ -71,53 +110,7 @@ class RadiativeTransferBNN(nn.Module):
                 ]
             )
 
-        # if a saved model is not provided, create a new model, else load it
-        if saved_model_filename is None:
-            self.shared_layer = nn.Sequential(
-                bnn.BayesLinear(  # input layer
-                    prior_mu=0,
-                    prior_sigma=0.1,
-                    in_features=3,
-                    out_features=self.number_of_neurones
-                ),
-                nn.BatchNorm1d(self.number_of_neurones),
-                nn.ReLU(),
-                nn.Dropout(self.dropout_probablity),
-
-                bnn.BayesLinear(  # 1st hidden layer
-                    prior_mu=0,
-                    prior_sigma=0.1,
-                    in_features=self.number_of_neurones,
-                    out_features=self.number_of_neurones
-                ),
-                nn.BatchNorm1d(self.number_of_neurones),
-                nn.ReLU(),
-                nn.Dropout(self.dropout_probablity),
-
-                bnn.BayesLinear(  # 2nd hidden layer
-                    prior_mu=0,
-                    prior_sigma=0.1,
-                    in_features=self.number_of_neurones,
-                    out_features=self.number_of_neurones
-                ),
-                nn.BatchNorm1d(self.number_of_neurones),
-                nn.ReLU(),
-                nn.Dropout(self.dropout_probablity),
-            )
-
-            self.output_layer = nn.Sequential(
-                bnn.BayesLinear(
-                    prior_mu=0,
-                    prior_sigma=0.1,
-                    in_features=self.number_of_neurones,
-                    out_features=113
-                )
-            )
-
-        else:
-            self.load_state_dict(torch.load(saved_model_filename))
-
-        self.to(self.device)
+        self.to(self.device)  # move the model to the GPU if available
 
     def forward(self, x):
         """
@@ -414,6 +407,8 @@ class RadiativeTransferBNN(nn.Module):
             run_ids,
             test_size=0.2,
             random_state=42
+            #shuffle = False,
+            #stratify = None
             )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
@@ -584,6 +579,7 @@ class RadiativeTransferBNN(nn.Module):
         # log_mdust = np.array(log_mdust)
         # theta = np.array(theta)
 
+
         theta = (theta * np.pi) / 180  # convert to radians
 
         log_mdust_over_mstar = log_mdust - log_mstar
@@ -592,6 +588,8 @@ class RadiativeTransferBNN(nn.Module):
         tensor = torch.Tensor(
             np.array([log_mstar, log_mdust_over_mstar, theta])
             ).to(self.device)
+        
+        tensor = torch.transpose(tensor, 0, 1)
 
         return tensor
     
@@ -611,15 +609,24 @@ class RadiativeTransferBNN(nn.Module):
         - mean_pred_results (np.array): Mean predicted results.
         - std_pred_results (np.array): Standard deviation of predicted results.
         """
+        print("Predicting the output...")
+
+        X = X.cpu().detach().numpy()
+        X_norm = self.normalise(X)
+        X_norm = torch.Tensor(X).to(self.device)
 
         self.eval()
         pred = np.array([
-            self(X).detach().numpy() for _ in range(500)
+            self(X_norm).detach().numpy() for _ in range(500)
             ])
 
         pred = self.postprocess_data(pred)
+        print(pred.shape)
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
+
+        self.denormalise(mean_pred_results, np.mean(X), np.std(X))
+        self.denormalise(std_pred_results, np.mean(X), np.std(X))
 
         return mean_pred_results, std_pred_results
     
@@ -669,18 +676,3 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
         return pred
-
-    def save_model(self, filename: str):
-        """
-        Saves the model to a file.
-
-        This method saves the model to a file using the provided filename.
-
-        Parameters:
-        - filename (str): The name of the file to save the model to.
-
-        Returns:
-        - None, but saves the model to a file.
-        """
-
-        torch.save(self.state_dict(), filename)
