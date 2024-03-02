@@ -81,6 +81,14 @@ class Plotter:
         plt.show()
         plt.close()
 
+    def color_map(self, colormap, x,y):
+
+        dict = {'autumn' : plt.cm.autumn(x / y) }
+
+        color = dict[colormap]
+
+        return color
+
 
     def plot_same_ax(self, i:int = 0, j:int = 5, step_size:int = 1):
 
@@ -91,7 +99,9 @@ class Plotter:
 
         while i < j:
 
-            color = plt.cm.autumn(((i-q)+1) / (j-q))
+            color = self.color_map('autumn',((i-q)+1),(j-q))
+
+            #color = plt.cm.autumn(((i-q)+1) / (j-q))
 
             ax.plot(self.x,self.y[i,:],color= color,lw=3)
 
