@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Plotter:
-    def __init__(self, x, y,test_inputs, test_output, output = 'n'):
+    def __init__(self, x, y,test_inputs = None, test_output = None, output = 'n'):
         # # Initialize the plotter with an empty figure and axis
         # self.fig, self.ax = plt.subplots()
         self.y = y
@@ -21,10 +21,7 @@ class Plotter:
 
 
     def plot_group_same(self, i:int =0, j:int = 16, color1:str = 'blue', color2:str = 'red'):
-
-
-        
-
+       
 
         while i < j:
 
@@ -110,6 +107,24 @@ class Plotter:
 
         plt.show()
         plt.close()
+
+    def cost_vs_epochs(self,x,y):
+
+        self.figure, ax = plt.subplots(figsize=(15, 5))
+
+        ax.plot(x,y,lw=3)
+
+        plt.xlabel(f'Epochs')
+        plt.ylabel(f'Cost')
+
+        plt.suptitle(f'Cost vs Epochs')
+
+        plt.tight_layout()
+
+        plt.show()
+        plt.close()
+
+
 
 
     def save_figure(self, filename = "figure.png"):
