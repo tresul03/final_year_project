@@ -99,6 +99,8 @@ class Plotter:
         plt.ylabel('Sersic Index (Normalised)')
         plt.xscale('log')
 
+        plt.colorbar(plt.cm.ScalarMappable(cmap='autumn'), label='Input Value')
+
         plt.suptitle(f'Predicted Mean Model for {q} to {j}')
 
         plt.tight_layout()
