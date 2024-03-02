@@ -10,14 +10,20 @@ class Plotter:
         self.test_inputs = test_inputs
         self.test_output = test_output
         self.figure = None 
-        self.dict = {'n':'Sersic Index', 'f':'Flux', 'r':'Half-Radius'}
+        self.dict = {'n':'Sersic Index', 'f':'Flux/Wm$^{-2}$', 'r':'Half-Radius/kpc'}
         self.output = output
+        self.latex_code_star_mass = r'log(M_{star})'
+        self.latex_code_dust_mass = r'log(M_{star})/log(M_{dust})'
+        self.latex_code_angle = r'Sin(\theta)'
 
         #need to add whether it is plotting n,f or r
 
 
 
     def plot_group_same(self, i:int =0, j:int = 16, color1:str = 'blue', color2:str = 'red'):
+
+
+        
 
 
         while i < j:
@@ -27,22 +33,22 @@ class Plotter:
 
             fig_group, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
 
-            ax1.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i,0]:2.2f}, {self.test_inputs[i,1]:2.2f}, {self.test_inputs[i,2]:2.2f}')
+            ax1.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
             ax1.plot(self.x,self.y[i,:],color= color2,lw=3,label='Predicted Mean Model')
-            ax2.plot(self.x,self.test_output[i+1,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i+1,0]:2.2f}, {self.test_inputs[i+1,1]:2.2f}, {self.test_inputs[i+1,2]:2.2f}')
+            ax2.plot(self.x,self.test_output[i+1,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i+1,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i+1,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i+1,2]:2.2f}')
             ax2.plot(self.x,self.y[i+1,:],color= color2,lw=3,label='Predicted Mean Model')
-            ax3.plot(self.x,self.test_output[i+2,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i+2,0]:2.2f}, {self.test_inputs[i+2,1]:2.2f}, {self.test_inputs[i+2,2]:2.2f}')
+            ax3.plot(self.x,self.test_output[i+2,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i+2,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i+2,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i+2,2]:2.2f}')
             ax3.plot(self.x,self.y[i+2,:],color= color2,lw=3,label='Predicted Mean Model')
-            ax4.plot(self.x,self.test_output[i+3,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i+3,0]:2.2f}, {self.test_inputs[i+3,1]:2.2f}, {self.test_inputs[i+3,2]:2.2f}')
+            ax4.plot(self.x,self.test_output[i+3,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i+3,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i+3,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i+3,2]:2.2f}')
             ax4.plot(self.x,self.y[i+3,:],color= color2,lw=3,label='Predicted Mean Model')
 
         
 
             for ax in fig_group.get_axes():
                 #ax.label_outer()
-                ax.set(xlabel=f'Wavelength($\\mu$m)', ylabel='Sersic Index (Normalised)')
+                ax.set(xlabel=f'Wavelength/$\\mu$m', ylabel= f'{self.dict[self.output]} ')
                 ax.set_xscale('log')
-                ax.legend()
+                ax.legend(fontsize='large')
                 
             fig_group.suptitle(f'Comparison of SKIRT Model and Predicted Mean Model for {i} to {i+3} input values')
             
@@ -62,19 +68,18 @@ class Plotter:
         self.figure, ax = plt.subplots(figsize=(15, 5))
 
 
-        ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input = {self.test_inputs[i,0]:2.2f}, {self.test_inputs[i,1]:2.2f}, {self.test_inputs[i,2]:2.2f}')
+        ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
         ax.plot(self.x,self.y[i,:],color= color2,lw=3,label='Predicted Mean Model')
 
-        plt.xlabel(f'Wavelength($\\mu$m)')
-        plt.ylabel(f'{self.dict[self.output]} (Normalised)')
+        plt.xlabel(f'Wavelength/$\\mu$m')
+        plt.ylabel(f'{self.dict[self.output]} ')
         plt.xscale('log')
-        plt.legend()
 
         plt.suptitle(f'Comparison of SKIRT Model and Predicted Mean Model for {i} input value')
 
         plt.tight_layout()
 
-        plt.legend()
+        plt.legend(fontsize='large')
             
         plt.show()
         plt.close()
@@ -95,8 +100,8 @@ class Plotter:
 
             i += step_size
 
-        plt.xlabel(f'Wavelength($\\mu$m)')
-        plt.ylabel('Sersic Index (Normalised)')
+        plt.xlabel(f'Wavelength/$\\mu$m')
+        plt.ylabel(f'{self.dict[self.output]} ')
         plt.xscale('log')
 
         plt.suptitle(f'Predicted Mean Model for {q} to {j}')
