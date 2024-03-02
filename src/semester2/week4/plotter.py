@@ -3,12 +3,24 @@ import numpy as np
 
 class Plotter:
     def __init__(self, x, y,test_inputs = None, test_output = None, output = 'n', font_size = 18):
+        """
+        Initialize the plotter with the input and output values
+        
+        Parameters:
+        - x: np.array, input values
+        - y: np.array, output values
+        - test_inputs: np.array, input values for the test set
+        - test_output: np.array, output values for the test set
+        - output: str, output variable
+        - font_size: int, font size for the plot
+        """
         # # Initialize the plotter with an empty figure and axis
         # self.fig, self.ax = plt.subplots()
         self.y = y
         self.x = x
         self.test_inputs = test_inputs
         self.test_output = test_output
+        self.std = None
         self.figure = None 
         self.dict = {'n':'Sersic Index', 'f':'Flux/Wm$^{-2}$', 'r':'Half-Radius/kpc'}
         self.output = output
@@ -21,6 +33,18 @@ class Plotter:
 
 
     def plot_group_same(self, i:int =0, j:int = 16, color1:str = 'blue', color2:str = 'red'):
+        """
+        Plot the predicted mean and the SKIRT model for a group of input values
+        
+        Parameters:
+        - i: int, index of the input value start
+        - j: int, index of the input value end
+        - color1: str, color of the SKIRT model plot
+        - color2: str, color of the predicted mean plot
+        
+        Output:
+        - Plot of the predicted mean and the SKIRT model for a group of input values
+        """
        
 
         while i < j:
@@ -57,13 +81,33 @@ class Plotter:
 
 
 
-    def plot_single(self, i:int =0, color1:str = 'blue', color2:str = 'red'):
+    def plot_single(self, i:int =0, color1:str = 'blue', color2:str = 'red', std = None):
+        """
+        Plot the predicted mean and the SKIRT model for a single input value
+        
+        Parameters:
+        - i: int, index of the input value
+        - color1: str, color of the SKIRT model plot
+        - color2: str, color of the predicted mean plot
+        - std: np.array, standard deviation of the predicted mean
+        
+        Output:
+        - Plot of the predicted mean and the SKIRT model for a single input value
+        """
 
         self.figure, ax = plt.subplots(figsize=(15, 5))
 
+        self.std = std
 
-        ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
-        ax.plot(self.x,self.y[i,:],color= color2,lw=3,label='Model Predicted Mean')
+        if self.std is not None:
+
+            ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
+            ax.plot(self.x,self.y[i,:],color= color2,lw=3,label='Model Predicted Mean')
+            ax.fill_between(self.x, self.y[i,:]-self.std[i,:], self.y[i,:]+self.std[i,:], color=color2, alpha=0.3)
+
+        else:
+            ax.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
+            ax.plot(self.x,self.y[i,:],color= color2,lw=3,label='Model Predicted Mean')
 
         plt.xlabel(f'Wavelength/$\\mu$m', fontsize = self.font_size)
         plt.ylabel(f'{self.dict[self.output]}', fontsize = self.font_size)
@@ -93,8 +137,19 @@ class Plotter:
 
         return color
 
-
     def plot_same_ax(self, i:int = 0, j:int = 5, step_size:int = 1,colormap = 'cool'):
+        """
+        Plot the same axis for different values of i
+
+        Parameters:
+        - Input value start
+        - Input values end
+        - Step size
+        - colourmap
+
+        Output:
+        - Plot of the same axis for different values of i to j
+        """
 
 
         self.figure, ax = plt.subplots(figsize=(15, 5))
@@ -124,9 +179,17 @@ class Plotter:
 
         plt.show()
         plt.close()
-
-        
+       
     def cost_vs_epochs(self):
+        """
+        Plot the cost vs epochs    
+
+        Parameters:
+        - None
+
+        Output:
+        - Plot of cost vs epochs    
+        """
 
         self.figure, ax = plt.subplots(figsize=(15, 5))
 
@@ -142,8 +205,13 @@ class Plotter:
         plt.show()
         plt.close()
 
-
     def save_figure(self, filename = "figure.png"):
+        """
+        Save the figure to a file
+
+        Parameters:
+        - filename: str, name of the file to save the figure to
+        """
         if self.figure is not None:
             self.figure.savefig(filename)
             print(f"Figure saved as {filename}")
