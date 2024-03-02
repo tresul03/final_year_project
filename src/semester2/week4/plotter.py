@@ -83,14 +83,18 @@ class Plotter:
 
     def color_map(self, colormap, x,y):
 
-        dict = {'autumn' : plt.cm.autumn(x / y) }
+        dict = {'autumn' : plt.cm.autumn(x / y), 
+                'cool' : plt.cm.cool(x / y), 
+                'winter' : plt.cm.winter(x / y), 
+                'spring' : plt.cm.spring(x / y), 
+                'summer' : plt.cm.summer(x / y)}
 
         color = dict[colormap]
 
         return color
 
 
-    def plot_same_ax(self, i:int = 0, j:int = 5, step_size:int = 1):
+    def plot_same_ax(self, i:int = 0, j:int = 5, step_size:int = 1,colormap = 'cool'):
 
 
         self.figure, ax = plt.subplots(figsize=(15, 5))
@@ -99,7 +103,7 @@ class Plotter:
 
         while i < j:
 
-            color = self.color_map('autumn',((i-q)+1),(j-q))
+            color = self.color_map(colormap,((i-q)+1),(j-q))
 
             #color = plt.cm.autumn(((i-q)+1) / (j-q))
 
@@ -122,11 +126,11 @@ class Plotter:
         plt.close()
 
         
-    def cost_vs_epochs(self,x,y):
+    def cost_vs_epochs(self):
 
         self.figure, ax = plt.subplots(figsize=(15, 5))
 
-        ax.plot(x,y,lw=3)
+        ax.plot(self.x,self.y,lw=3)
 
         plt.xlabel(f'Epochs')
         plt.ylabel(f'Cost')
