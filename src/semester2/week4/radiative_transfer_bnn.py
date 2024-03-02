@@ -44,6 +44,8 @@ class RadiativeTransferBNN(nn.Module):
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
         self.kl_weight = 0.1
+        self.cost = []
+        self.epoch = []
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -512,6 +514,9 @@ class RadiativeTransferBNN(nn.Module):
                 cost.backward()
                 self.optimizer.step()
 
+            self.cost.append(cost.item())
+            self.epoch.append(epoch)
+
             print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: \
                 {kl.item():.3f}"
                 )
@@ -675,6 +680,20 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
         return pred
+    
+    def cost_vs_epoch(self):
+        """
+        Returns a dataframe of the cost vs epochs.
+
+        This method takes the cost and epoch data in array form 
+        
+        Returns:
+        - a dataframe so that is can then be plotted.
+        """
+        return pd.DataFrame({
+            "epoch": self.epoch,
+            "cost": self.cost
+        })
 
     def save_model(self, filename: str):
         """
