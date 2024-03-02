@@ -44,15 +44,6 @@ class RadiativeTransferBNN(nn.Module):
         self.mse_loss = nn.MSELoss().to(self.device)
         self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
         self.kl_weight = 0.1
-        self.optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.learning_rate
-            )
-        self.scheduler = torch.optim.lr_scheduler.StepLR(
-                    self.optimizer,
-                    step_size=250,
-                    gamma=0.1
-                    )
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -118,6 +109,17 @@ class RadiativeTransferBNN(nn.Module):
             self.load_state_dict(torch.load(saved_model_filename))
 
         self.to(self.device)
+
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.learning_rate
+            )
+        
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.optimizer,
+                    step_size=250,
+                    gamma=0.1
+                    )
 
     def forward(self, x):
         """
