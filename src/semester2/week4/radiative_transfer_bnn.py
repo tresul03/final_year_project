@@ -37,8 +37,10 @@ class RadiativeTransferBNN(nn.Module):
         cuda_available = torch.cuda.is_available()
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
-        self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
-        self.externally_normalisee = lambda x, mean, std: (x - mean) / std
+        self.mean = torch.tensor([])
+        self.std = torch.tensor([])
+        # self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
+        self.externally_normalise = lambda x, mean, std: (x - mean) / std
         self.denormalise = lambda x, mean, std: (x * std) + mean
 
         self.mse_loss = nn.MSELoss().to(self.device)
@@ -135,6 +137,31 @@ class RadiativeTransferBNN(nn.Module):
         """
         shared = self.shared_layer(x)
         return self.output_layer(shared)
+    
+    def normalise(self, x):
+        """
+        Normalises the input.
+
+        This method normalises the input by subtracting the mean and dividing
+        by the standard deviation.
+
+        Parameters:
+        - x (np.array): Input array.
+
+        Returns:
+        - normalised_x (torch.tensor): Normalised input to tensor.
+        """
+        
+        mean = np.mean(x)
+        std = np.std(x)
+        normalised_x = (x - mean) / std
+        mean = torch.tensor(mean)
+        std = torch.tensor(std)
+        print(mean.shape)
+        self.mean = torch.stack([self.mean, mean])
+        self.std = torch.stack([self.std, std])
+        
+        return normalised_x
 
     def read_input_file(
             self,
@@ -408,7 +435,7 @@ class RadiativeTransferBNN(nn.Module):
         y_output_matrix = np.array(
             self.df[self.output_choice].copy().to_list()
             )
-
+ 
         for i in range(len(y_output_matrix)):
             y_output_matrix[i] = self.normalise(y_output_matrix[i])
             y.at[i, self.output_choice] = y_output_matrix[i]
