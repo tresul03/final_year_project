@@ -622,17 +622,17 @@ class RadiativeTransferBNN(nn.Module):
 
         return tensor
 
+    def denormalise_matrix(self, matrix):
+        for i, row in enumerate(matrix.T):
+            row = self.denormalise(
+                row,
+                self.output_mean[i],
+                self.output_std[i]
+                )
+
+        return matrix
+
     def postprocess_data(self, pred):
-        def denormalise_matrix(matrix):
-            for i, row in enumerate(matrix.T):
-                row = self.denormalise(
-                    row,
-                    self.output_mean[i],
-                    self.output_std[i]
-                    )
-
-            return matrix
-
         # denormalise the test inputs
         for i, column_name in enumerate(
             self.df[[
@@ -649,13 +649,13 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
         # denormalise the test outputs
-        self.y_test = denormalise_matrix(
+        self.y_test = self.denormalise_matrix(
             self.y_test
             )
 
         # denormalise the predictions
         for prediction_iter in pred:
-            prediction_iter = denormalise_matrix(
+            prediction_iter = self.denormalise_matrix(
                 prediction_iter
                 )
 
