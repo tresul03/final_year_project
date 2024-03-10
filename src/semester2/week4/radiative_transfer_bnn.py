@@ -41,10 +41,10 @@ class RadiativeTransferBNN(nn.Module):
         self.externally_normalise = lambda x, mean, std: (x - mean) / std
         self.denormalise = lambda x, mean, std: (x * std) + mean
 
-        self.input_mean: np.ndarray
-        self.input_std: np.ndarray
-        self.output_mean: np.ndarray
-        self.output_std: np.ndarray
+        self.input_mean = np.array([])
+        self.input_std = np.array([])
+        self.output_mean = np.array([])
+        self.output_std = np.array([])
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -655,16 +655,16 @@ class RadiativeTransferBNN(nn.Module):
         return mean_pred_results, std_pred_results
 
     def postprocess_data(self, pred):
-        y_output_matrix = np.array(
-            self.df[self.output_choice].copy().to_list()
-            )
+        # y_output_matrix = np.array(
+        #     self.df[self.output_choice].copy().to_list()
+        #     )
 
-        def denormalise_matrix(matrix, y_output_matrix):
+        def denormalise_matrix(matrix):
             for i, row in enumerate(matrix.T):
                 row = self.denormalise(
                     row,
-                    np.mean(y_output_matrix.T[i]),
-                    np.std(y_output_matrix.T[i])
+                    self.output_mean[i],
+                    self.output_std[i]
                     )
 
             return matrix
@@ -680,21 +680,19 @@ class RadiativeTransferBNN(nn.Module):
 
             self.X_test[:, i] = self.denormalise(
                 self.X_test[:, i],
-                np.mean(self.df[column_name]),
-                np.std(self.df[column_name])
+                self.input_mean[i],
+                self.input_std[i]
                 )
 
         # denormalise the test outputs
         self.y_test = denormalise_matrix(
-            self.y_test,
-            y_output_matrix
+            self.y_test
             )
 
         # denormalise the predictions
         for prediction_iter in pred:
             prediction_iter = denormalise_matrix(
-                prediction_iter,
-                y_output_matrix
+                prediction_iter
                 )
 
         return pred
