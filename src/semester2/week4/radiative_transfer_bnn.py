@@ -401,7 +401,7 @@ class RadiativeTransferBNN(nn.Module):
             "angle_id"
             ]].copy()
 
-        print(X.columns)
+        print(X.columns[:-2])
 
         self.input_mean = np.array([
             np.mean(X[input_column]) for input_column in
@@ -576,7 +576,8 @@ class RadiativeTransferBNN(nn.Module):
             self(self.X_test).detach().numpy() for _ in range(500)
             ])
 
-        pred = self.postprocess_data(pred)
+        self.y_test = self.denormalise_matrix(self.y_test)
+        pred = self.postprocess_data(self.X_test, pred)
         print(pred.shape)
 
         mean_pred_results = np.mean(pred, axis=0)
@@ -632,8 +633,8 @@ class RadiativeTransferBNN(nn.Module):
 
         return matrix
 
-    def postprocess_data(self, pred):
-        # denormalise the test inputs
+    def postprocess_data(self, inputs, pred):
+        # denormalise the inputs
         for i, column_name in enumerate(
             self.df[[
                 "log_mstar",
@@ -642,16 +643,16 @@ class RadiativeTransferBNN(nn.Module):
                 ]].copy().columns
                 ):
 
-            self.X_test[:, i] = self.denormalise(
-                self.X_test[:, i],
+            inputs[:, i] = self.denormalise(
+                inputs[:, i],
                 self.input_mean[i],
                 self.input_std[i]
                 )
 
-        # denormalise the test outputs
-        self.y_test = self.denormalise_matrix(
-            self.y_test
-            )
+        # # denormalise the test outputs
+        # self.y_test = self.denormalise_matrix(
+        #     self.y_test
+        #     )
 
         # denormalise the predictions
         for prediction_iter in pred:
@@ -695,7 +696,7 @@ class RadiativeTransferBNN(nn.Module):
             ])
 
         # denormalise the predictions
-        pred = self.postprocess_data(pred)
+        pred = self.postprocess_data(inputs, pred)
 
         # calculate the mean and standard deviation of the predictions
         mean_pred_results = np.mean(pred, axis=0)
@@ -719,7 +720,7 @@ class RadiativeTransferBNN(nn.Module):
         Returns a dataframe of the cost vs epochs.
 
         This method takes the cost and epoch data in array form 
-        
+
         Returns:
         - a dataframe so that is can then be plotted.
         """
