@@ -124,17 +124,6 @@ class RadiativeTransferBNN(nn.Module):
 
         self.to(self.device)
 
-        self.optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.learning_rate
-            )
-        
-        self.scheduler = torch.optim.lr_scheduler.StepLR(
-                    self.optimizer,
-                    step_size=250,
-                    gamma=0.1
-                    )
-
     def forward(self, x):
         """
         Forward pass through the network.
@@ -412,6 +401,8 @@ class RadiativeTransferBNN(nn.Module):
             "angle_id"
             ]].copy()
 
+        print(X.columns)
+
         self.input_mean = np.array([
             np.mean(X[input_column]) for input_column in
             X.columns[:-2]
@@ -546,8 +537,8 @@ class RadiativeTransferBNN(nn.Module):
                 cost.backward()
                 self.optimizer.step()
 
-            self.cost.append(cost.item())
-            self.epoch.append(epoch)
+            # self.cost.append(cost.item())
+            # self.epoch.append(epoch)
 
             print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: \
                 {kl.item():.3f}"
@@ -631,48 +622,7 @@ class RadiativeTransferBNN(nn.Module):
 
         return tensor
 
-    def predict(self, X):
-        """
-        Predicts the output using the Bayesian Neural Network model.
-
-        This method sets the model to evaluation mode and performs forward
-        propagation on the input data.
-        It generates predictions for the input data multiple times and
-        calculates the mean and standard deviation of these predictions.
-
-        Parameters:
-        - X (tensor): Input tensor.
-
-        Returns:
-        - mean_pred_results (np.array): Mean predicted results.
-        - std_pred_results (np.array): Standard deviation of predicted results.
-        """
-        print("Predicting the output...")
-
-        X = X.cpu().detach().numpy()
-        X_norm = self.externally_normalise(X, )
-        X_norm = torch.Tensor(X).to(self.device)
-
-        self.eval()
-        pred = np.array([
-            self(X_norm).detach().numpy() for _ in range(500)
-            ])
-
-        pred = self.postprocess_data(pred)
-        print(pred.shape)
-        mean_pred_results = np.mean(pred, axis=0)
-        std_pred_results = np.std(pred, axis=0)
-
-        self.denormalise(mean_pred_results, np.mean(X), np.std(X))
-        self.denormalise(std_pred_results, np.mean(X), np.std(X))
-
-        return mean_pred_results, std_pred_results
-
     def postprocess_data(self, pred):
-        # y_output_matrix = np.array(
-        #     self.df[self.output_choice].copy().to_list()
-        #     )
-
         def denormalise_matrix(matrix):
             for i, row in enumerate(matrix.T):
                 row = self.denormalise(
@@ -710,7 +660,60 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
         return pred
-    
+
+    def predict(self, inputs):
+        """
+        Predicts the output using the Bayesian Neural Network model.
+
+        This method sets the model to evaluation mode and performs forward
+        propagation on the input data.
+        It generates predictions for the input data multiple times and
+        calculates the mean and standard deviation of these predictions.
+
+        Parameters:
+        - X (tensor): Input tensor.
+
+        Returns:
+        - mean_pred_results (np.array): Mean predicted results.
+        - std_pred_results (np.array): Standard deviation of predicted results.
+        """
+
+        t0 = time.time()
+        self.eval()
+
+        # externally normalise the input
+        for i, column in enumerate(inputs.T):
+            column = self.externally_normalise(
+                column,
+                self.input_mean[i],
+                self.input_std[i]
+                )
+
+        # generate predictions
+        pred = np.array([
+            self(inputs).detach().numpy() for _ in range(500)
+            ])
+
+        # denormalise the predictions
+        pred = self.postprocess_data(pred)
+
+        # calculate the mean and standard deviation of the predictions
+        mean_pred_results = np.mean(pred, axis=0)
+        std_pred_results = np.std(pred, axis=0)
+
+        # # find the cost of the model
+        # mse = self.mse_loss(
+        #     torch.Tensor(mean_pred_results),
+        #     torch.Tensor(self.y_test)
+        #     )
+        # kl = self.kl_loss(self)
+        # cost = mse + self.kl_weight * kl
+
+        # print(f"- cost: {cost.item():.3f}")
+        # print(f"- this took {time.time() - t0:.2f} seconds")
+
+        return mean_pred_results, std_pred_results
+
     def cost_vs_epoch(self):
         """
         Returns a dataframe of the cost vs epochs.
