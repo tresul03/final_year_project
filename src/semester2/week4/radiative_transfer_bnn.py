@@ -38,14 +38,13 @@ class RadiativeTransferBNN(nn.Module):
         self.device = torch.device("cuda:0" if cuda_available else "cpu")
 
         self.normalise = lambda x: (x - np.mean(x)) / np.std(x)
-        self.externally_normalisee = lambda x, mean, std: (x - mean) / std
+        self.externally_normalise = lambda x, mean, std: (x - mean) / std
         self.denormalise = lambda x, mean, std: (x * std) + mean
 
-        self.mse_loss = nn.MSELoss().to(self.device)
-        self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
-        self.kl_weight = 0.1
-        self.cost = []
-        self.epoch = []
+        self.input_mean = np.array([])
+        self.input_std = np.array([])
+        self.output_mean = np.array([])
+        self.output_std = np.array([])
 
         self.X_train = torch.Tensor().to(self.device)
         self.X_test = torch.Tensor().to(self.device)
@@ -109,6 +108,19 @@ class RadiativeTransferBNN(nn.Module):
 
         else:
             self.load_state_dict(torch.load(saved_model_filename))
+
+        self.mse_loss = nn.MSELoss().to(self.device)
+        self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
+        self.kl_weight = 0.1
+        self.optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.learning_rate
+            )
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+                    self.optimizer,
+                    step_size=250,
+                    gamma=0.1
+                    )
 
         self.to(self.device)
 
@@ -400,6 +412,16 @@ class RadiativeTransferBNN(nn.Module):
             "angle_id"
             ]].copy()
 
+        self.input_mean = np.array([
+            np.mean(X[input_column]) for input_column in
+            X.columns[:-2]
+        ])
+
+        self.input_std = np.array([
+            np.std(X[input_column]) for input_column in
+            X.columns[:-2]
+        ])
+
         X["log_mstar"] = self.normalise(X["log_mstar"])
         X["log_mdust_over_mstar"] = self.normalise(X["log_mdust_over_mstar"])
         X["theta"] = self.normalise(X["theta"])
@@ -410,6 +432,16 @@ class RadiativeTransferBNN(nn.Module):
             )
 
         for i in range(len(y_output_matrix)):
+            self.output_mean = np.append(
+                self.output_mean,
+                np.mean(y_output_matrix[i])
+                )
+
+            self.output_std = np.append(
+                self.output_std,
+                np.std(y_output_matrix[i])
+                )
+
             y_output_matrix[i] = self.normalise(y_output_matrix[i])
             y.at[i, self.output_choice] = y_output_matrix[i]
 
@@ -618,7 +650,7 @@ class RadiativeTransferBNN(nn.Module):
         print("Predicting the output...")
 
         X = X.cpu().detach().numpy()
-        X_norm = self.externally_normalisee(X, )
+        X_norm = self.externally_normalise(X, )
         X_norm = torch.Tensor(X).to(self.device)
 
         self.eval()
@@ -637,16 +669,16 @@ class RadiativeTransferBNN(nn.Module):
         return mean_pred_results, std_pred_results
 
     def postprocess_data(self, pred):
-        y_output_matrix = np.array(
-            self.df[self.output_choice].copy().to_list()
-            )
+        # y_output_matrix = np.array(
+        #     self.df[self.output_choice].copy().to_list()
+        #     )
 
-        def denormalise_matrix(matrix, y_output_matrix):
+        def denormalise_matrix(matrix):
             for i, row in enumerate(matrix.T):
                 row = self.denormalise(
                     row,
-                    np.mean(y_output_matrix.T[i]),
-                    np.std(y_output_matrix.T[i])
+                    self.output_mean[i],
+                    self.output_std[i]
                     )
 
             return matrix
@@ -662,21 +694,19 @@ class RadiativeTransferBNN(nn.Module):
 
             self.X_test[:, i] = self.denormalise(
                 self.X_test[:, i],
-                np.mean(self.df[column_name]),
-                np.std(self.df[column_name])
+                self.input_mean[i],
+                self.input_std[i]
                 )
 
         # denormalise the test outputs
         self.y_test = denormalise_matrix(
-            self.y_test,
-            y_output_matrix
+            self.y_test
             )
 
         # denormalise the predictions
         for prediction_iter in pred:
             prediction_iter = denormalise_matrix(
-                prediction_iter,
-                y_output_matrix
+                prediction_iter
                 )
 
         return pred
