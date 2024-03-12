@@ -118,11 +118,13 @@ class RadiativeTransferBNN(nn.Module):
             )
         self.scheduler = torch.optim.lr_scheduler.StepLR(
                     self.optimizer,
-                    step_size=500,
+                    step_size=250,
                     gamma=0.1
                     )
 
         self.to(self.device)
+
+        self.preprocess_data()
 
     def forward(self, x):
         """
@@ -692,7 +694,6 @@ class RadiativeTransferBNN(nn.Module):
         - std_pred_results (np.array): Standard deviation of predicted results.
         """
 
-        t0 = time.time()
         self.eval()
 
         print(inputs.shape)
@@ -712,11 +713,10 @@ class RadiativeTransferBNN(nn.Module):
 
         # denormalise the predictions
         pred = self.postprocess_data(inputs, pred)
-    
+
         # calculate the mean and standard deviation of the predictions
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
-
 
         return mean_pred_results, std_pred_results
 
@@ -724,7 +724,7 @@ class RadiativeTransferBNN(nn.Module):
         """
         Returns a dataframe of the cost vs epochs.
 
-        This method takes the cost and epoch data in array form 
+        This method takes the cost and epoch data in array form
 
         Returns:
         - a dataframe so that is can then be plotted.
