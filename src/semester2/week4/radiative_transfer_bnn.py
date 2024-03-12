@@ -418,10 +418,14 @@ class RadiativeTransferBNN(nn.Module):
         X["theta"] = self.normalise(X["theta"])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
+
+        # transpose y_output_matrix so that each row is a different wavelength
+        # element to be normalised
         y_output_matrix = np.array(
             self.df[self.output_choice].copy().to_list()
-            )
+            ).T
 
+        # normalise the output with respect to each wavelength element
         for i in range(len(y_output_matrix)):
             self.output_mean = np.append(
                 self.output_mean,
@@ -434,6 +438,9 @@ class RadiativeTransferBNN(nn.Module):
                 )
 
             y_output_matrix[i] = self.normalise(y_output_matrix[i])
+
+        y_output_matrix = y_output_matrix.T
+        for i in range(len(y_output_matrix)):
             y.at[i, self.output_choice] = y_output_matrix[i]
 
         run_ids = X["run_id"].unique()
@@ -511,6 +518,8 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.train()
 
+        print(self.X_train.shape)
+
         # Create a TensorDataset from input and output tensors
         tensor_dataset = TensorDataset(
             torch.Tensor(self.X_train),
@@ -572,6 +581,8 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.eval()
 
+        print(self.X_test.shape)
+
         pred = np.array([
             self(self.X_test).detach().numpy() for _ in range(500)
             ])
@@ -618,20 +629,22 @@ class RadiativeTransferBNN(nn.Module):
         tensor = torch.Tensor(
             np.array([log_mstar, log_mdust_over_mstar, theta])
             ).to(self.device)
-        
+
         tensor = torch.transpose(tensor, 0, 1)
 
         return tensor
 
     def denormalise_matrix(self, matrix):
-        for i, row in enumerate(matrix.T):
+        matrix = matrix.T
+
+        for i, row in enumerate(matrix):
             row = self.denormalise(
                 row,
                 self.output_mean[i],
                 self.output_std[i]
                 )
 
-        return matrix
+        return matrix.T
 
     def postprocess_data(self, inputs, pred):
         # denormalise the inputs
@@ -682,6 +695,8 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.eval()
 
+        print(inputs.shape)
+
         # externally normalise the input
         for i, column in enumerate(inputs.T):
             column = self.externally_normalise(
@@ -697,21 +712,11 @@ class RadiativeTransferBNN(nn.Module):
 
         # denormalise the predictions
         pred = self.postprocess_data(inputs, pred)
-
+    
         # calculate the mean and standard deviation of the predictions
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
 
-        # # find the cost of the model
-        # mse = self.mse_loss(
-        #     torch.Tensor(mean_pred_results),
-        #     torch.Tensor(self.y_test)
-        #     )
-        # kl = self.kl_loss(self)
-        # cost = mse + self.kl_weight * kl
-
-        # print(f"- cost: {cost.item():.3f}")
-        # print(f"- this took {time.time() - t0:.2f} seconds")
 
         return mean_pred_results, std_pred_results
 
