@@ -403,8 +403,6 @@ class RadiativeTransferBNN(nn.Module):
             "angle_id"
             ]].copy()
 
-        print(X.columns[:-2])
-
         self.input_mean = np.array([
             np.mean(X[input_column]) for input_column in
             X.columns[:-2]
@@ -442,6 +440,7 @@ class RadiativeTransferBNN(nn.Module):
             y_output_matrix[i] = self.normalise(y_output_matrix[i])
 
         y_output_matrix = y_output_matrix.T
+
         for i in range(len(y_output_matrix)):
             y.at[i, self.output_choice] = y_output_matrix[i]
 
@@ -520,8 +519,6 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.train()
 
-        print(self.X_train.shape)
-
         # Create a TensorDataset from input and output tensors
         tensor_dataset = TensorDataset(
             torch.Tensor(self.X_train),
@@ -583,15 +580,12 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.eval()
 
-        print(self.X_test.shape)
-
         pred = np.array([
             self(self.X_test).detach().numpy() for _ in range(500)
             ])
 
         self.y_test = self.denormalise_matrix(self.y_test)
         pred = self.postprocess_data(self.X_test, pred)
-        print(pred.shape)
 
         mean_pred_results = np.mean(pred, axis=0)
         std_pred_results = np.std(pred, axis=0)
@@ -646,7 +640,11 @@ class RadiativeTransferBNN(nn.Module):
                 self.output_std[i]
                 )
 
-        return matrix.T
+            matrix[i] = row
+
+        matrix = matrix.T
+
+        return matrix
 
     def postprocess_data(self, inputs, pred):
         # denormalise the inputs
@@ -696,8 +694,6 @@ class RadiativeTransferBNN(nn.Module):
 
         self.eval()
 
-        print(inputs.shape)
-
         # externally normalise the input
         for i, column in enumerate(inputs.T):
             column = self.externally_normalise(
@@ -705,6 +701,8 @@ class RadiativeTransferBNN(nn.Module):
                 self.input_mean[i],
                 self.input_std[i]
                 )
+
+            inputs[:, i] = column
 
         # generate predictions
         pred = np.array([
