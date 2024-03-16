@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Plotter:
-    def __init__(self, x, y,test_inputs = None, test_output = None, output = 'n', font_size = 18):
+    def __init__(self, x, y,test_inputs = None, test_output = None, output = 'n', font_size = 24):
         """
         Initialize the plotter with the input and output values
         
@@ -50,7 +50,7 @@ class Plotter:
         while i < j:
 
 
-            fig_group, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(20, 10))
+            fig_group, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(30, 20))
 
             ax1.plot(self.x,self.test_output[i,:],color= color1,lw=3,label=f'SKIRT Model: input : ${self.latex_code_star_mass}$ = {self.test_inputs[i,0]:2.2f}, ${self.latex_code_dust_mass}$ = {self.test_inputs[i,1]:2.2f}, ${self.latex_code_angle}$ = {self.test_inputs[i,2]:2.2f}')
             ax1.plot(self.x,self.y[i,:],color= color2,lw=3,label='Model Predicted Mean')
@@ -66,10 +66,12 @@ class Plotter:
                 #ax.label_outer()
                 ax.set(xlabel=f'Wavelength/$\\mu$m', ylabel= f'{self.dict[self.output]}')
                 ax.set_xscale('log')
-                ax.legend(fontsize=self.font_size)
+                ax.legend(fontsize=16)
                 
             fig_group.suptitle(f'Comparison of SKIRT Model and BNN Model Predicted Mean for {i} to {i+3} input values', fontsize=self.font_size)
             
+            plt.xticks (fontsize=self.font_size)
+            plt.yticks (fontsize=self.font_size)
 
             plt.tight_layout()
 
