@@ -682,13 +682,32 @@ class RadiativeTransferBNN(nn.Module):
         t0 = time.time()
         self.eval()
 
-        # externally normalise the input
-        for i, column in enumerate(inputs.T):
-            column = self.externally_normalise(
-                column,
-                self.input_mean[i],
-                self.input_std[i]
-                )
+        print(inputs.shape)
+        print(inputs.T.shape)
+
+        # # externally normalise the input
+        # for i, column in enumerate(inputs.T):
+        #     column = self.externally_normalise(
+        #         column,
+        #         self.input_mean[i],
+        #         self.input_std[i]
+        #         )
+
+        # ext normalise the inputs
+        for i, column_name in enumerate(
+            self.df[[
+                "log_mstar",
+                "log_mdust_over_mstar",
+                "theta"
+                ]].copy().columns
+                ):
+        
+                inputs[:, i] = self.externally_normalise(
+                        inputs[:, i],
+                        self.input_mean[i],
+                        self.input_std[i]
+                        )
+
 
         # generate predictions
         pred = np.array([
