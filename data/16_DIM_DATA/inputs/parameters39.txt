@@ -1,0 +1,33 @@
+# viewing angles
+theta = 9.07, 88.14, 76.24, 76.45, 83.79, 13.79, 62.75, 55.31, 44.51, 56.73
+
+# galaxy mass and structure parameters
+logMstar = 10.77 # mass of stellar disk
+logMdust = 6.89 # mass of dust disk
+Rstar = 2.20 # half-mass radius of stellar disk
+Cstar = 0.13 # half-mass height of stellar disk
+nstar = 0.87 # Sersic index of stellar disk
+ndust = 0.47 # Sersic index of diffuse dust disk
+RdRs = 1.56 # raito of half-mass raidus between dust disk and stellar disk
+CdCs = 0.88 # raito of half-mass height between dust disk and stellar disk
+
+# birth cloud parameters
+f_cov = 0.52 # fraction of young stars (<10Myr) in birth clouds
+BC_t = 10.00 # Myr, life time of birth clouds
+BC_GTS = 10.00 # gas-to-star ratio in birth clouds
+BC_DTG = 0.01 # dust-to-gas ratio in birth clouds
+BC_Sigma_gas = 35.00 # M_sun/pc^2, gas surface-density in birth clouds
+
+# stellar population parameters
+Age = 10.00 # age of the galaxy since the onset of star formation
+t_peak = 2.09 # Gyr, star formation peak time at galaxy centre
+k_peak = -0.58 # gradient of SF peak time
+fwhm = 17.90 # Gyr, full width half maximum at galaxy centre
+k_fwhm = -0.78 # gradient of fwhm
+metal = 1.60 # stellar metallicity
+
+# other model parameters
+logM_min = 4.00 # mass range to resample young stellar particles (<100Myr)
+logM_max = 6.00
+N_stellar_particle = 100000 # number of stellar particles before resampling
+N_dust_particle = 1000000 # number of diffuse dust particles
