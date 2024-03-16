@@ -448,7 +448,7 @@ class RadiativeTransferBNN(nn.Module):
         train_runs, test_runs = train_test_split(
             run_ids,
             test_size=0.2,
-            random_state=42
+            random_state=30
             )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
@@ -662,16 +662,11 @@ class RadiativeTransferBNN(nn.Module):
                 self.input_std[i]
                 )
 
-        # # denormalise the test outputs
-        # self.y_test = self.denormalise_matrix(
-        #     self.y_test
-        #     )
-
-        # denormalise the predictions
-        for prediction_iter in pred:
+        for i, prediction_iter in enumerate(pred):
             prediction_iter = self.denormalise_matrix(
                 prediction_iter
                 )
+            pred[i] = prediction_iter
 
         return pred
 
