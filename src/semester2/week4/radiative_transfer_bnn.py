@@ -418,10 +418,14 @@ class RadiativeTransferBNN(nn.Module):
         X["theta"] = self.normalise(X["theta"])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
+
+        # transpose y_output_matrix so that each row is a different wavelength
+        # element to be normalised
         y_output_matrix = np.array(
             self.df[self.output_choice].copy().to_list()
-            )
+            ).T
 
+        # normalise the output with respect to each wavelength element
         for i in range(len(y_output_matrix)):
             self.output_mean = np.append(
                 self.output_mean,
@@ -621,13 +625,15 @@ class RadiativeTransferBNN(nn.Module):
         tensor = torch.Tensor(
             np.array([log_mstar, log_mdust_over_mstar, theta])
             ).to(self.device)
-        
+
         tensor = torch.transpose(tensor, 0, 1)
 
         return tensor
 
     def denormalise_matrix(self, matrix):
-        for i, row in enumerate(matrix.T):
+        matrix = matrix.T
+
+        for i, row in enumerate(matrix):
             row = self.denormalise(
                 row,
                 self.output_mean[i],
@@ -683,28 +689,13 @@ class RadiativeTransferBNN(nn.Module):
 
         self.eval()
 
-        # # externally normalise the input
-        # for i, column in enumerate(inputs.T):
-        #     column = self.externally_normalise(
-        #         column,
-        #         self.input_mean[i],
-        #         self.input_std[i]
-        #         )
-
-        # ext normalise the inputs
-        for i, column_name in enumerate(
-            self.df[[
-                "log_mstar",
-                "log_mdust_over_mstar",
-                "theta"
-                ]].copy().columns
-                ):
-        
-                inputs[:, i] = self.externally_normalise(
-                        inputs[:, i],
-                        self.input_mean[i],
-                        self.input_std[i]
-                        )
+        # externally normalise the input
+        for i, column in enumerate(inputs.T):
+            column = self.externally_normalise(
+                column,
+                self.input_mean[i],
+                self.input_std[i]
+                )
 
             inputs[:, i] = column
 
