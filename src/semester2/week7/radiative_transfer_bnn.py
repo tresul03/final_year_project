@@ -19,14 +19,15 @@ class RadiativeTransferBNN(nn.Module):
     - learning_rate (float): Learning rate.
     - output_choice (str): Choice of output.
     """
+
     def __init__(
-            self,
-            number_of_neurones: int,
-            dropout_probablity: float,
-            learning_rate: float,
-            output_choice: str,
-            saved_model_filename=None
-            ):
+        self,
+        number_of_neurones: int,
+        dropout_probablity: float,
+        learning_rate: float,
+        output_choice: str,
+        saved_model_filename=None,
+    ):
         super(RadiativeTransferBNN, self).__init__()
 
         self.number_of_neurones = number_of_neurones
@@ -56,12 +57,25 @@ class RadiativeTransferBNN(nn.Module):
             columns=[
                 "log_mstar",
                 "log_mdust_over_mstar",
+                "Rstar",
+                "Cstar",
+                "nstar",
+                "ndust",
+                "RdRs",
+                "CdCs",
+                "f_cov",
+                "age",
+                "t_peak",
+                "k_peak",
+                "fwhm",
+                "k_fwhm",
+                "metal",
                 "theta",
                 "n",
                 "flux",
-                "r"
-                ]
-            )
+                "r",
+            ]
+        )
 
         # if a saved model is not provided, create a new model, else load it
         if saved_model_filename is None:
@@ -69,28 +83,26 @@ class RadiativeTransferBNN(nn.Module):
                 bnn.BayesLinear(  # input layer
                     prior_mu=0,
                     prior_sigma=0.1,
-                    in_features=3,
-                    out_features=self.number_of_neurones
+                    in_features=16,
+                    out_features=self.number_of_neurones,
                 ),
                 nn.BatchNorm1d(self.number_of_neurones),
                 nn.ReLU(),
                 nn.Dropout(self.dropout_probablity),
-
                 bnn.BayesLinear(  # 1st hidden layer
                     prior_mu=0,
                     prior_sigma=0.1,
                     in_features=self.number_of_neurones,
-                    out_features=self.number_of_neurones
+                    out_features=self.number_of_neurones,
                 ),
                 nn.BatchNorm1d(self.number_of_neurones),
                 nn.ReLU(),
                 nn.Dropout(self.dropout_probablity),
-
                 bnn.BayesLinear(  # 2nd hidden layer
                     prior_mu=0,
                     prior_sigma=0.1,
                     in_features=self.number_of_neurones,
-                    out_features=self.number_of_neurones
+                    out_features=self.number_of_neurones,
                 ),
                 nn.BatchNorm1d(self.number_of_neurones),
                 nn.ReLU(),
@@ -102,7 +114,7 @@ class RadiativeTransferBNN(nn.Module):
                     prior_mu=0,
                     prior_sigma=0.1,
                     in_features=self.number_of_neurones,
-                    out_features=113
+                    out_features=113,
                 )
             )
 
@@ -110,20 +122,19 @@ class RadiativeTransferBNN(nn.Module):
             self.load_state_dict(torch.load(saved_model_filename))
 
         self.mse_loss = nn.MSELoss().to(self.device)
-        self.kl_loss = bnn.BKLLoss(reduction='mean').to(self.device)
+        self.kl_loss = bnn.BKLLoss(reduction="mean").to(self.device)
         self.kl_weight = 0.1
         self.optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.learning_rate
             )
         self.scheduler = torch.optim.lr_scheduler.StepLR(
-                    self.optimizer,
-                    step_size=250,
-                    gamma=0.1
-                    )
+            self.optimizer,
+            step_size=250,
+            gamma=0.1
+        )
 
         self.to(self.device)
-
         self.preprocess_data()
 
     def forward(self, x):
@@ -140,10 +151,8 @@ class RadiativeTransferBNN(nn.Module):
         return self.output_layer(shared)
 
     def read_input_file(
-            self,
-            filename: str,
-            filepath: str = '../../data/radiative_transfer/input/'
-            ):
+        self, filename: str, filepath: str = "../../data/16_DIM_DATA/input/"
+    ):
         """
         Reads the input file and extracts parameters.
 
@@ -167,25 +176,25 @@ class RadiativeTransferBNN(nn.Module):
         are parameter values.
         """
 
-        lines = open(filepath+filename, 'r').readlines()
+        lines = open(filepath + filename, "r").readlines()
 
         keys = []
         values = []
         for i in range(len(lines)):
 
             line_i = lines[i]
-            line1 = line_i.split('\n')[0]
-            line2 = line1.split('#')[0]
-            line3 = line2.split('=')
+            line1 = line_i.split("\n")[0]
+            line2 = line1.split("#")[0]
+            line3 = line2.split("=")
             line4 = []
             for j in range(len(line3)):
-                line4.append(line3[j].strip(' '))
+                line4.append(line3[j].strip(" "))
 
             if len(line4) == 2:
                 keys.append(line4[0])
-                line5 = line4[1].split(', ')
+                line5 = line4[1].split(", ")
                 line5 = np.array(line5).astype(float)
-                if len(line5) == 1 and line4[0] != 'theta':
+                if len(line5) == 1 and line4[0] != "theta":
                     line5 = line5[0]
                 values.append(line5)
 
@@ -193,10 +202,8 @@ class RadiativeTransferBNN(nn.Module):
         return table
 
     def read_input_dict(
-            self,
-            filenames: list,
-            filepath: str = "../../../data/radiative_transfer/input/"
-            ):
+        self, filenames: list, filepath: str = "../../../data/16_DIM_DATA/input/"
+    ):
         """
         Reads multiple parameter files and extracts parameters.
 
@@ -226,27 +233,73 @@ class RadiativeTransferBNN(nn.Module):
 
         list_log_mstar = np.array([])
         list_log_mdust = np.array([])
+        list_Rstar = np.array([])
+        list_Cstar = np.array([])
+        list_nstar = np.array([])
+        list_ndust = np.array([])
+        list_RdRs = np.array([])
+        list_CdCs = np.array([])
+        list_f_cov = np.array([])
+        list_age = np.array([])
+        list_t_peak = np.array([])
+        list_k_peak = np.array([])
+        list_fwhm = np.array([])
+        list_k_fwhm = np.array([])
+        list_metal = np.array([])
+
         list_theta = np.array([])
 
         for filename in filenames:
             table = self.read_input_file(filename, filepath)
-            list_log_mstar = np.append(list_log_mstar, table['logMstar'])
-            list_log_mdust = np.append(list_log_mdust, table['logMdust'])
-            list_theta = np.append(list_theta, table['theta'])
+            list_log_mstar = np.append(list_log_mstar, table["logMstar"])
+            list_log_mdust = np.append(list_log_mdust, table["logMdust"])
+            list_Rstar = np.append(list_Rstar, table["Rstar"])
+            list_Cstar = np.append(list_Cstar, table["Cstar"])
+            list_nstar = np.append(list_nstar, table["nstar"])
+            list_ndust = np.append(list_ndust, table["ndust"])
+            list_RdRs = np.append(list_RdRs, table["RdRs"])
+            list_CdCs = np.append(list_CdCs, table["CdCs"])
+            list_f_cov = np.append(list_f_cov, table["f_cov"])
+            list_age = np.append(list_age, table["Age"])
+            list_t_peak = np.append(list_t_peak, table["t_peak"])
+            list_k_peak = np.append(list_k_peak, table["k_peak"])
+            list_fwhm = np.append(list_fwhm, table["fwhm"])
+            list_k_fwhm = np.append(list_k_fwhm, table["k_fwhm"])
+            list_metal = np.append(list_metal, table["metal"])
+
+            list_theta = np.append(list_theta, table["theta"])
 
         list_log_mdust_over_mstar = list_log_mdust - list_log_mstar
 
-        return list_log_mstar, list_log_mdust_over_mstar, list_theta
+        # return list_log_mstar, list_log_mdust_over_mstar, list_theta
+        return \
+            list_log_mstar, list_log_mdust_over_mstar, list_Rstar, \
+            list_Cstar, list_nstar, list_ndust, list_RdRs, list_CdCs, \
+            list_f_cov, list_age, list_t_peak, list_k_peak, \
+            list_fwhm, list_k_fwhm, list_metal, list_theta
 
     def read_output_file(
-            self,
-            filename: str,
-            data,
-            thetas,
-            log_mstar,
-            log_mdust_over_mstar,
-            filepath: str = '../../../data/radiative_transfer/output/'
-            ):
+        self,
+        filename: str,
+        data,
+        log_mstar,
+        log_mdust_over_mstar,
+        Rstar,
+        Cstar,
+        nstar,
+        ndust,
+        RdRs,
+        CdCs,
+        f_cov,
+        age,
+        t_peak,
+        k_peak,
+        fwhm,
+        k_fwhm,
+        metal,
+        thetas,
+        filepath: str = "../../../data/16_DIM_DATA/output/",
+    ):
         """
         Reads the output file and extracts parameters.
 
@@ -279,40 +332,56 @@ class RadiativeTransferBNN(nn.Module):
 
         # Finding hdf keys
         hdf_keys = np.array([])
-        with pd.HDFStore(filepath, 'r') as hdf:
+        with pd.HDFStore(filepath, "r") as hdf:
             hdf_keys = np.append(hdf_keys, hdf.keys())
 
         for i in range(len(hdf_keys)):
             table = pd.read_hdf(filepath, hdf_keys[i])
 
             # obtain wavelength, flux, half-light radius, and Sersic index
-            wvl = table['wvl'].to_numpy(dtype=np.float64)  # [micron]
-            flux = table['flux'].to_numpy(dtype=np.float64)  # [Wm^-2]
-            r = table['r'].to_numpy(dtype=np.float64)  # [kpc]
-            n = table['n'].to_numpy(dtype=np.float64)
+            wvl = table["wvl"].to_numpy(dtype=np.float64)  # [micron]
+            flux = table["flux"].to_numpy(dtype=np.float64)  # [Wm^-2]
+            r = table["r"].to_numpy(dtype=np.float64)  # [kpc]
+            n = table["n"].to_numpy(dtype=np.float64)
 
             self.wavelength = wvl
             flux = np.log10(flux)
             r = np.log10(r)
             n = np.log10(n)
 
-            self.df = pd.concat([
-                self.df,
-                pd.DataFrame({
-                    "log_mstar": log_mstar,
-                    "log_mdust_over_mstar": log_mdust_over_mstar,
-                    "theta": thetas[i],
-                    "n": [n],
-                    "flux": [flux],
-                    "r": [r]
-                    })
-                ], ignore_index=True).reset_index(drop=True)
+            self.df = pd.concat(
+                [
+                    self.df,
+                    pd.DataFrame(
+                        {
+                            "log_mstar": log_mstar,
+                            "log_mdust_over_mstar": log_mdust_over_mstar,
+                            "Rstar": Rstar,
+                            "Cstar": Cstar,
+                            "nstar": nstar,
+                            "ndust": ndust,
+                            "RdRs": RdRs,
+                            "CdCs": CdCs,
+                            "f_cov": f_cov,
+                            "age": age,
+                            "t_peak": t_peak,
+                            "k_peak": k_peak,
+                            "fwhm": fwhm,
+                            "k_fwhm": k_fwhm,
+                            "metal": metal,
+                            "theta": thetas[i],
+                            "n": [n],
+                            "flux": [flux],
+                            "r": [r],
+                        }
+                    ),
+                ],
+                ignore_index=True,
+            ).reset_index(drop=True)
 
         return wvl, self.df.reset_index(drop=True)
 
-    def compile_dataset(
-            self
-            ):
+    def compile_dataset(self):
         """
         Compiles the dataset from multiple input and output files.
 
@@ -333,30 +402,51 @@ class RadiativeTransferBNN(nn.Module):
         output files.
         """
 
-        input_filepath = "../../../data/radiative_transfer/input/"
-        output_filepath = "../../../data/radiative_transfer/output/"
+        input_filepath = "../../../data/16_DIM_DATA/input/"
+        output_filepath = "../../../data/16_DIM_DATA/output/"
 
         input_files = [
             file for file in os.listdir(input_filepath)
             if file.startswith("parameters")
-            ]
+        ]
 
         output_files = [
             file for file in os.listdir(output_filepath)
             if file.startswith("data")
-            ]
+        ]
 
-        list_log_mstar, list_log_mdust_over_mstar, list_theta = \
+        # list_log_mstar, list_log_mdust_over_mstar, list_theta = self.read_input_dict(
+        #     input_files
+        # )
+
+        list_log_mstar, list_log_mdust_over_mstar, list_Rstar, list_Cstar, \
+            list_nstar, list_ndust, list_RdRs, list_CdCs, list_f_cov, \
+            list_age, list_t_peak, list_k_peak, list_fwhm, list_k_fwhm, \
+            list_metal, list_theta = \
             self.read_input_dict(input_files)
+
         list_theta = (list_theta * np.pi) / 180  # convert to radians
 
         for i in range(len(output_files)):
             wavelength, self.df = self.read_output_file(
                 output_files[i],
                 self.df,
-                np.sin(list_theta),
                 list_log_mstar[i],
-                list_log_mdust_over_mstar[i]
+                list_log_mdust_over_mstar[i],
+                list_Rstar[i],
+                list_Cstar[i],
+                list_nstar[i],
+                list_ndust[i],
+                list_RdRs[i],
+                list_CdCs[i],
+                list_f_cov[i],
+                list_age[i],
+                list_t_peak[i],
+                list_k_peak[i],
+                list_fwhm[i],
+                list_k_fwhm[i],
+                list_metal[i],
+                np.sin(list_theta),
             )
 
         return wavelength
@@ -389,33 +479,34 @@ class RadiativeTransferBNN(nn.Module):
 
         self.compile_dataset()
 
-        self.df["run_id"] = self.df.groupby([
-            "log_mstar",
-            "log_mdust_over_mstar"
-            ]).ngroup()
+        self.df["run_id"] = self.df.groupby(
+            ["log_mstar", "log_mdust_over_mstar"]
+        ).ngroup()
         self.df["angle_id"] = self.df.index % 10
 
-        X = self.df[[
-            "log_mstar",
-            "log_mdust_over_mstar",
-            "theta",
-            "run_id",
-            "angle_id"
-            ]].copy()
+        input_columns = self.df.columns[:16]
+        input_columns = np.append(input_columns, ["run_id", "angle_id"])
+        print(input_columns)
+        print(len(input_columns))
+        print([type(self.df[x]) for x in input_columns])
 
-        self.input_mean = np.array([
-            np.mean(X[input_column]) for input_column in
-            X.columns[:-2]
-        ])
+        # 26 input features, including run_id and angle_id
+        X = self.df[input_columns].copy()
 
-        self.input_std = np.array([
-            np.std(X[input_column]) for input_column in
-            X.columns[:-2]
-        ])
+        self.input_mean = np.array(
+            [np.mean(X[input_column]) for input_column in X.columns[:-2]]
+        )
 
-        X["log_mstar"] = self.normalise(X["log_mstar"])
-        X["log_mdust_over_mstar"] = self.normalise(X["log_mdust_over_mstar"])
-        X["theta"] = self.normalise(X["theta"])
+        self.input_std = np.array(
+            [np.std(X[input_column]) for input_column in X.columns[:-2]]
+        )
+
+        # X["log_mstar"] = self.normalise(X["log_mstar"])
+        # X["log_mdust_over_mstar"] = self.normalise(X["log_mdust_over_mstar"])
+        # X["theta"] = self.normalise(X["theta"])
+
+        for i, column in enumerate(X.columns[:-2]):
+            X[column] = self.normalise(X[column])
 
         y = self.df[[self.output_choice, "run_id", "angle_id"]].copy()
 
@@ -449,7 +540,7 @@ class RadiativeTransferBNN(nn.Module):
             run_ids,
             test_size=0.2,
             random_state=30
-            )
+        )
 
         self.X_train = X[X["run_id"].isin(train_runs)]
         self.X_test = X[X["run_id"].isin(test_runs)]
@@ -457,14 +548,26 @@ class RadiativeTransferBNN(nn.Module):
         self.y_test = y[y["run_id"].isin(test_runs)]
 
         # order the datasets by both run_id and theta, then drop run_id
-        self.X_train = self.X_train.sort_values(by=["run_id", "angle_id"])\
-            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
-        self.X_test = self.X_test.sort_values(by=["run_id", "angle_id"])\
-            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
-        self.y_train = self.y_train.sort_values(by=["run_id", "angle_id"])\
-            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
-        self.y_test = self.y_test.sort_values(by=["run_id", "angle_id"])\
-            .drop(columns=["run_id", "angle_id"]).reset_index(drop=True)
+        self.X_train = (
+            self.X_train.sort_values(by=["run_id", "angle_id"])
+            .drop(columns=["run_id", "angle_id"])
+            .reset_index(drop=True)
+        )
+        self.X_test = (
+            self.X_test.sort_values(by=["run_id", "angle_id"])
+            .drop(columns=["run_id", "angle_id"])
+            .reset_index(drop=True)
+        )
+        self.y_train = (
+            self.y_train.sort_values(by=["run_id", "angle_id"])
+            .drop(columns=["run_id", "angle_id"])
+            .reset_index(drop=True)
+        )
+        self.y_test = (
+            self.y_test.sort_values(by=["run_id", "angle_id"])
+            .drop(columns=["run_id", "angle_id"])
+            .reset_index(drop=True)
+        )
 
         self.X_train = self.convert_to_tensor(self.X_train)
         self.X_test = self.convert_to_tensor(self.X_test)
@@ -485,16 +588,12 @@ class RadiativeTransferBNN(nn.Module):
         data = data.map(np.array)
         stacked_input_arrays = np.stack(
             data.apply(lambda row: np.stack(row, axis=0), axis=1).to_numpy()
-            )
+        )
         data = torch.Tensor(stacked_input_arrays)
 
         return data
 
-    def train_model(
-            self,
-            epochs: int,
-            batch_size: int
-            ):
+    def train_model(self, epochs: int, batch_size: int):
         """
         Trains the Bayesian Neural Network model using batch training.
 
@@ -521,16 +620,13 @@ class RadiativeTransferBNN(nn.Module):
 
         # Create a TensorDataset from input and output tensors
         tensor_dataset = TensorDataset(
-            torch.Tensor(self.X_train),
-            torch.Tensor(self.y_train)
-            )
+            torch.Tensor(self.X_train), torch.Tensor(self.y_train)
+        )
 
         for epoch in range(epochs):
             data_loader = DataLoader(
-                tensor_dataset,
-                batch_size=batch_size,
-                shuffle=True
-                )
+                tensor_dataset, batch_size=batch_size, shuffle=True
+            )
 
             for batch_data, batch_labels in data_loader:
                 self.optimizer.zero_grad()
@@ -548,9 +644,10 @@ class RadiativeTransferBNN(nn.Module):
             # self.cost.append(cost.item())
             # self.epoch.append(epoch)
 
-            print(f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: \
+            print(
+                f"- epoch {epoch+1}/{epochs} - cost: {cost.item():.3f}, kl: \
                 {kl.item():.3f}"
-                )
+            )
         self.scheduler.step()
         print(f"- this took {time.time() - t0:.2f} seconds")
 
@@ -622,9 +719,9 @@ class RadiativeTransferBNN(nn.Module):
 
         log_mdust_over_mstar = log_mdust - log_mstar
 
-        tensor = torch.Tensor(
-            np.array([log_mstar, log_mdust_over_mstar, theta])
-            ).to(self.device)
+        tensor = torch.Tensor(np.array([log_mstar, log_mdust_over_mstar, theta])).to(
+            self.device
+        )
 
         tensor = torch.transpose(tensor, 0, 1)
 
@@ -638,34 +735,29 @@ class RadiativeTransferBNN(nn.Module):
                 row,
                 self.output_mean[i],
                 self.output_std[i]
-                )
-
+            )
             matrix[i] = row
 
         matrix = matrix.T
-
         return matrix
 
     def postprocess_data(self, inputs, pred):
         # denormalise the inputs
+
+        # print inputs shape
+        print(f"inputs shape: {inputs.shape}")
+        print(f"self.input_mean shape: {self.input_mean.shape}")
+
         for i, column_name in enumerate(
-            self.df[[
-                "log_mstar",
-                "log_mdust_over_mstar",
-                "theta"
-                ]].copy().columns
-                ):
+            self.df[self.df.columns[:16]].copy().columns
+        ):
 
             inputs[:, i] = self.denormalise(
-                inputs[:, i],
-                self.input_mean[i],
-                self.input_std[i]
-                )
+                inputs[:, i], self.input_mean[i], self.input_std[i]
+            )
 
         for i, prediction_iter in enumerate(pred):
-            prediction_iter = self.denormalise_matrix(
-                prediction_iter
-                )
+            prediction_iter = self.denormalise_matrix(prediction_iter)
             pred[i] = prediction_iter
 
         return pred
@@ -692,17 +784,13 @@ class RadiativeTransferBNN(nn.Module):
         # externally normalise the input
         for i, column in enumerate(inputs.T):
             column = self.externally_normalise(
-                column,
-                self.input_mean[i],
-                self.input_std[i]
-                )
+                column, self.input_mean[i], self.input_std[i]
+            )
 
             inputs[:, i] = column
 
         # generate predictions
-        pred = np.array([
-            self(inputs).detach().numpy() for _ in range(500)
-            ])
+        pred = np.array([self(inputs).detach().numpy() for _ in range(500)])
 
         # denormalise the predictions
         pred = self.postprocess_data(inputs, pred)
@@ -722,10 +810,7 @@ class RadiativeTransferBNN(nn.Module):
         Returns:
         - a dataframe so that is can then be plotted.
         """
-        return pd.DataFrame({
-            "epoch": self.epoch,
-            "cost": self.cost
-        })
+        return pd.DataFrame({"epoch": self.epoch, "cost": self.cost})
 
     def save_model(self, filename: str):
         """
