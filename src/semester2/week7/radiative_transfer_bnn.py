@@ -333,8 +333,8 @@ class RadiativeTransferBNN(nn.Module):
         output files.
         """
 
-        input_filepath = "../../../data/radiative_transfer/input/"
-        output_filepath = "../../../data/radiative_transfer/output/"
+        input_filepath = "../../../data/rad_transfer_ratio/inputs/"
+        output_filepath = "../../../data/rad_transfer_ratio/outputs/"
 
         input_files = [
             file for file in os.listdir(input_filepath)
@@ -347,7 +347,7 @@ class RadiativeTransferBNN(nn.Module):
             ]
 
         list_log_mstar, list_log_mdust_over_mstar, list_theta = \
-            self.read_input_dict(input_files)
+            self.read_input_dict(input_files,input_filepath)
         list_theta = (list_theta * np.pi) / 180  # convert to radians
 
         for i in range(len(output_files)):
@@ -356,7 +356,8 @@ class RadiativeTransferBNN(nn.Module):
                 self.df,
                 np.sin(list_theta),
                 list_log_mstar[i],
-                list_log_mdust_over_mstar[i]
+                list_log_mdust_over_mstar[i],
+                output_filepath
             )
 
         return wavelength
